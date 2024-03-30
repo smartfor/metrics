@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const UpdateUrl = "http://localhost:8080/update"
+const BaseURL = "http://localhost:8080/update"
 
 const PollInterval = 2
 const ReportInterval = 10
@@ -62,7 +62,7 @@ func main() {
 		metricStore["PollCount"] = Metric{Type: metrics.Counter, Key: "PollCount", Value: pollCounter}
 		metricStore["RandomValue"] = Metric{Type: metrics.Gauge, Key: "RandomValue", Value: rand.Float64()}
 
-		fmt.Printf("Сбор Метрик окончен: %d\n", pollCounter)
+		//fmt.Printf("Сбор Метрик окончен: %d\n", pollCounter)
 		time.Sleep(PollInterval * time.Second)
 	}
 }
@@ -76,8 +76,8 @@ func runReportLoop() {
 
 		for _, v := range metricStore {
 			go func(m Metric) {
-				str := createUrl(m)
-				fmt.Printf("Строка для формирования урла: %s\n", str)
+				str := createURL(m)
+				//fmt.Printf("Строка для формирования урла: %s\n", str)
 				post, err := http.Post(str, "text/plain", nil)
 				if err != nil {
 					return
@@ -87,13 +87,13 @@ func runReportLoop() {
 			}(v)
 		}
 
-		fmt.Printf("Отчет закончен: %d\n", pollCounter)
+		//fmt.Printf("Отчет закончен: %d\n", pollCounter)
 		time.Sleep(ReportInterval * time.Second)
 	}
 }
 
-func createUrl(metric Metric) string {
-	var url = strings.Clone(UpdateUrl)
+func createURL(metric Metric) string {
+	var url = strings.Clone(BaseURL)
 	if metric.Type == metrics.Gauge {
 		url += "/gauge"
 	} else {
