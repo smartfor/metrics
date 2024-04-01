@@ -4,15 +4,18 @@ import (
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/metrics"
 	"strconv"
+	"sync"
 )
 
 type MemStorage struct {
 	store map[metrics.MetricType]map[string]interface{}
+	mu    sync.Mutex
 }
 
-func NewMemStorage() core.Storage {
-	var s = MemStorage{
+func NewMemStorage() *MemStorage {
+	s := &MemStorage{
 		store: make(map[metrics.MetricType]map[string]interface{}),
+		mu:    sync.Mutex{},
 	}
 
 	s.store[metrics.Gauge] = make(map[string]interface{})
@@ -21,7 +24,10 @@ func NewMemStorage() core.Storage {
 	return s
 }
 
-func (storage MemStorage) Set(metric metrics.MetricType, key string, value string) *core.StorageError {
+func (s *MemStorage) Set(metric metrics.MetricType, key string, value string) *core.StorageError {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	switch metric {
 	case metrics.Gauge:
 		{
@@ -35,7 +41,7 @@ func (storage MemStorage) Set(metric metrics.MetricType, key string, value strin
 				}
 			}
 
-			storage.store[metric][key] = val
+			s.store[metric][key] = val
 		}
 
 	case metrics.Counter:
@@ -50,11 +56,11 @@ func (storage MemStorage) Set(metric metrics.MetricType, key string, value strin
 				}
 			}
 
-			if _, ok := storage.store[metric][key]; !ok {
-				storage.store[metric][key] = int64(0)
+			if _, ok := s.store[metric][key]; !ok {
+				s.store[metric][key] = int64(0)
 			}
 
-			storage.store[metric][key] = storage.store[metric][key].(int64) + val
+			s.store[metric][key] = s.store[metric][key].(int64) + val
 		}
 
 	case metrics.Unknown:
@@ -71,14 +77,17 @@ func (storage MemStorage) Set(metric metrics.MetricType, key string, value strin
 	return nil
 }
 
-func (storage MemStorage) Get(metric metrics.MetricType, key string) (interface{}, *core.StorageError) {
+func (s *MemStorage) Get(metric metrics.MetricType, key string) (interface{}, *core.StorageError) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if metric == metrics.Unknown {
 		return nil, &core.StorageError{
-			Msg:  "Unknown Metric Type",
+			Msg:  "unknown Metric Type",
 			Key:  key,
 			Type: core.UnknownMetricType,
 		}
 	}
 
-	return storage.Get(metric, key)
+	return s.Get(metric, key)
 }
