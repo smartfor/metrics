@@ -3,15 +3,41 @@ package handlers
 import (
 	"github.com/smartfor/metrics/cmd/server/storage"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
-func TestMakeUpdateHandler(t *testing.T) {
+func testRequest(
+	t *testing.T,
+	ts *httptest.Server,
+	method string,
+	path string,
+) (*http.Response, string) {
+	req, err := http.NewRequest(method, ts.URL+path, nil)
+	require.NoError(t, err)
+
+	resp, err := ts.Client().Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	return resp, string(respBody)
+}
+
+func TestRouter(t *testing.T) {
 	type want struct {
-		code int
+		code     int
+		response string
 	}
+
+	s := storage.NewMemStorage()
+	ts := httptest.NewServer(Router(s))
+	defer ts.Close()
 
 	tests := []struct {
 		name       string
@@ -28,11 +54,53 @@ func TestMakeUpdateHandler(t *testing.T) {
 			},
 		},
 		{
+			name:       "Positive - Get gauge metric value",
+			requestURL: "/value/gauge/key1",
+			method:     http.MethodGet,
+			want: want{
+				code:     http.StatusOK,
+				response: "1",
+			},
+		},
+		{
 			name:       "Positive #2",
 			requestURL: "/update/counter/key1/2",
 			method:     http.MethodPost,
 			want: want{
 				code: http.StatusOK,
+			},
+		},
+		{
+			name:       "Positive - Get counter metric value",
+			requestURL: "/value/counter/key1",
+			method:     http.MethodGet,
+			want: want{
+				code:     http.StatusOK,
+				response: "2",
+			},
+		},
+		{
+			name:       "Negative - Unknown metric type",
+			requestURL: "/value/foo/key1",
+			method:     http.MethodGet,
+			want: want{
+				code: http.StatusNotFound,
+			},
+		},
+		{
+			name:       "Negative - Not found gauge metric",
+			requestURL: "/value/counter/foo",
+			method:     http.MethodGet,
+			want: want{
+				code: http.StatusNotFound,
+			},
+		},
+		{
+			name:       "Negative - Not found counter metric",
+			requestURL: "/value/counter/foo",
+			method:     http.MethodGet,
+			want: want{
+				code: http.StatusNotFound,
 			},
 		},
 		{
@@ -103,12 +171,12 @@ func TestMakeUpdateHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			s := storage.NewMemStorage()
-			request := httptest.NewRequest(test.method, test.requestURL, nil)
-			w := httptest.NewRecorder()
-			MakeUpdateHandler(s)(w, request)
-			res := w.Result()
-			assert.Equal(t, test.want.code, res.StatusCode)
+			resp, body := testRequest(t, ts, test.method, test.requestURL)
+			assert.Equal(t, test.want.code, resp.StatusCode)
+
+			if test.want.response != "" {
+				assert.Equal(t, test.want.response, body)
+			}
 		})
 	}
 }

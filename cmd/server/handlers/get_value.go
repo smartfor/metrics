@@ -7,18 +7,17 @@ import (
 	"net/http"
 )
 
-func MakeUpdateHandler(s core.Storage) func(http.ResponseWriter, *http.Request) {
+func MakeGetValueHandler(s core.Storage) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metric := metrics.NewMetricType(chi.URLParam(r, "type"))
 		key := chi.URLParam(r, "key")
-		value := chi.URLParam(r, "value")
 
-		err := s.Set(metric, key, value)
+		v, err := s.Get(metric, key)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(v))
 	}
 }

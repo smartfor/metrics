@@ -78,12 +78,12 @@ func (s *MemStorage) Set(metric metrics.MetricType, key string, value string) *c
 	return nil
 }
 
-func (s *MemStorage) Get(metric metrics.MetricType, key string) (interface{}, *core.StorageError) {
+func (s *MemStorage) Get(metric metrics.MetricType, key string) (string, *core.StorageError) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if metric == metrics.Unknown {
-		return nil, &core.StorageError{
+		return "", &core.StorageError{
 			Msg:  "unknown Metric Type",
 			Key:  key,
 			Type: core.UnknownMetricType,
@@ -92,12 +92,16 @@ func (s *MemStorage) Get(metric metrics.MetricType, key string) (interface{}, *c
 
 	value, ok := s.store[metric][key]
 	if !ok {
-		return nil, &core.StorageError{
+		return "", &core.StorageError{
 			Msg:  fmt.Sprintf("not found by type: %s key: %s", metric, key),
 			Key:  key,
 			Type: core.NotFound,
 		}
 	}
 
-	return value, nil
+	if metric == metrics.Gauge {
+		return strconv.FormatFloat(value.(float64), 'f', -1, 64), nil
+	} else {
+		return strconv.FormatInt(value.(int64), 10), nil
+	}
 }

@@ -4,7 +4,7 @@ import "github.com/smartfor/metrics/internal/metrics"
 
 type Storage interface {
 	Set(metric metrics.MetricType, key string, value string) *StorageError
-	Get(metric metrics.MetricType, key string) (interface{}, *StorageError)
+	Get(metric metrics.MetricType, key string) (string, *StorageError)
 }
 
 type StorageErrorType int

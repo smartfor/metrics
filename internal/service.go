@@ -61,7 +61,7 @@ func (s *Service) send() {
 	for _, v := range s.store {
 		go func(m Metric) {
 			str := s.createURL(m)
-			fmt.Printf("Строка для формирования урла: %s\n", str)
+			//fmt.Printf("Строка для формирования урла: %s\n", str)
 			res, err := s.httpClient.Post(str, "text/plain", nil)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Send report error: ", err)

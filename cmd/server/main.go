@@ -14,9 +14,6 @@ func main() {
 
 func run() error {
 	metricStorage := storage.NewMemStorage()
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/update/", handlers.MakeUpdateHandler(metricStorage))
-
-	return http.ListenAndServe(`:8080`, mux)
+	r := handlers.Router(metricStorage)
+	return http.ListenAndServe(`:8080`, r)
 }
