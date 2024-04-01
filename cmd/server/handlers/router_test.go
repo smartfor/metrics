@@ -180,6 +180,8 @@ func TestRouter(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			resp, body := testRequest(t, ts, test.method, test.requestURL)
+			defer resp.Body.Close()
+
 			assert.Equal(t, test.want.code, resp.StatusCode)
 
 			if test.want.response != "" {
