@@ -20,14 +20,14 @@ func TestMemStorage_Get(t *testing.T) {
 			name:       "Gauge: positive 1",
 			metricType: metrics.Gauge,
 			key:        "k1",
-			expected:   float64(1),
+			expected:   "1",
 			wantErr:    false,
 		},
 		{
 			name:       "Counter: positive 42",
 			metricType: metrics.Counter,
 			key:        "c1",
-			expected:   int64(42),
+			expected:   "42",
 			wantErr:    false,
 		},
 		{
@@ -62,6 +62,7 @@ func TestMemStorage_Get(t *testing.T) {
 			value, err := s.Get(tt.metricType, tt.key)
 			if tt.wantErr {
 				require.Error(t, err)
+				return
 			}
 
 			assert.Equal(t, tt.expected, value)
@@ -83,7 +84,7 @@ func TestMemStorage_Set(t *testing.T) {
 			metricType: metrics.Gauge,
 			key:        "key1",
 			value:      "123.123",
-			expected:   float64(123.123),
+			expected:   "123.123",
 			wantErr:    false,
 		},
 		{
@@ -91,7 +92,7 @@ func TestMemStorage_Set(t *testing.T) {
 			metricType: metrics.Gauge,
 			key:        "key1",
 			value:      "123",
-			expected:   float64(123),
+			expected:   "123",
 			wantErr:    false,
 		},
 		{
@@ -99,7 +100,7 @@ func TestMemStorage_Set(t *testing.T) {
 			metricType: metrics.Counter,
 			key:        "key1",
 			value:      "123",
-			expected:   int64(123),
+			expected:   "123",
 			wantErr:    false,
 		},
 		{
@@ -107,7 +108,7 @@ func TestMemStorage_Set(t *testing.T) {
 			metricType: "someUnknown",
 			key:        "key1",
 			value:      "123",
-			expected:   nil,
+			expected:   "",
 			wantErr:    true,
 		},
 		{
@@ -115,7 +116,7 @@ func TestMemStorage_Set(t *testing.T) {
 			metricType: metrics.Gauge,
 			key:        "key1",
 			value:      "sdfsdf",
-			expected:   nil,
+			expected:   "",
 			wantErr:    true,
 		},
 	}
@@ -142,6 +143,6 @@ func TestMemStorage_Set(t *testing.T) {
 		s.Set(metrics.Counter, k, "-7")
 
 		actual, _ := s.Get(metrics.Counter, k)
-		assert.Equal(t, int64(15), actual)
+		assert.Equal(t, "15", actual)
 	})
 }
