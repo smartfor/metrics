@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"github.com/smartfor/metrics/cmd/server/utils"
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/metrics"
 	"strconv"
@@ -100,8 +101,25 @@ func (s *MemStorage) Get(metric metrics.MetricType, key string) (string, *core.S
 	}
 
 	if metric == metrics.Gauge {
-		return strconv.FormatFloat(value.(float64), 'f', -1, 64), nil
+		return utils.GaugeAsString(value), nil
 	} else {
-		return strconv.FormatInt(value.(int64), 10), nil
+		return utils.CounterAsString(value), nil
 	}
+}
+
+func (s *MemStorage) GetAll() (map[string]string, *core.StorageError) {
+	var out = make(map[string]string)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for k, v := range s.store[metrics.Gauge] {
+		out[k] = utils.GaugeAsString(v)
+	}
+
+	for k, v := range s.store[metrics.Counter] {
+		out[k] = utils.CounterAsString(v)
+	}
+
+	return out, nil
 }

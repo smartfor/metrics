@@ -7,8 +7,10 @@ import (
 
 func Router(s core.Storage) chi.Router {
 	r := chi.NewRouter()
+
+	r.Get("/", MakeGetMetricsPageHandler(s))
 	r.Post("/update/{type}/{key}/{value}", MakeUpdateHandler(s))
 	r.Get("/value/{type}/{key}", MakeGetValueHandler(s))
-	return r
 
+	return r
 }

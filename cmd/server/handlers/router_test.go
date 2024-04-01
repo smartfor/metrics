@@ -167,6 +167,14 @@ func TestRouter(t *testing.T) {
 				code: http.StatusBadRequest,
 			},
 		},
+		{
+			name:       "Positive - Get metrics page",
+			requestURL: "/",
+			method:     http.MethodGet,
+			want: want{
+				code: http.StatusOK,
+			},
+		},
 	}
 
 	for _, test := range tests {
