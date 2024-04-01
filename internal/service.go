@@ -2,24 +2,23 @@ package internal
 
 import (
 	"fmt"
+	"github.com/go-resty/resty/v2"
 	"github.com/smartfor/metrics/internal/config"
 	"github.com/smartfor/metrics/internal/metrics"
 	"github.com/smartfor/metrics/internal/polling"
 	"math/rand"
-	"net/http"
 	"os"
 	"runtime"
 	"strconv"
-	"strings"
 	"time"
 )
 
 type Metric = polling.Metric
 
 type Service struct {
-	config     config.Config
-	store      map[string]Metric
-	httpClient http.Client
+	config config.Config
+	store  map[string]Metric
+	client *resty.Client
 }
 
 func NewService(cfg *config.Config) Service {
@@ -27,12 +26,15 @@ func NewService(cfg *config.Config) Service {
 		cfg = &config.DefaultConfig
 	}
 
+	client := resty.
+		New().
+		SetBaseURL(cfg.UpdateURL).
+		SetTimeout(cfg.ResponseTimeout)
+
 	return Service{
 		config: *cfg,
 		store:  make(map[string]Metric),
-		httpClient: http.Client{
-			Timeout: time.Second,
-		},
+		client: client,
 	}
 }
 
@@ -61,13 +63,14 @@ func (s *Service) send() {
 	for _, v := range s.store {
 		go func(m Metric) {
 			str := s.createURL(m)
-			//fmt.Printf("Строка для формирования урла: %s\n", str)
-			res, err := s.httpClient.Post(str, "text/plain", nil)
+
+			_, err := s.client.R().
+				SetHeader("Content-Type", "application/json").
+				Post(str)
+
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Send report error: ", err)
-				return
 			}
-			res.Body.Close()
 		}(v)
 	}
 }
@@ -108,17 +111,19 @@ func (s *Service) poll() {
 }
 
 func (s *Service) incrementPollCounter() {
-	counterStr, ok := s.store["PollCount"]
+	key := "PollCount"
+
+	counterStr, ok := s.store[key]
 	if !ok {
-		s.store["PollCount"] = Metric{Type: metrics.Counter, Key: "PollCount", Value: strconv.FormatInt(0, 10)}
-		counterStr = s.store["PollCount"]
+		s.store[key] = Metric{Type: metrics.Counter, Key: key, Value: strconv.FormatInt(0, 10)}
+		counterStr = s.store[key]
 	}
 	counter, _ := strconv.ParseInt(counterStr.Value, 10, 64)
-	s.store["PollCount"] = Metric{Type: metrics.Counter, Key: "PollCount", Value: strconv.FormatInt(counter+1, 10)}
+	s.store[key] = Metric{Type: metrics.Counter, Key: key, Value: strconv.FormatInt(counter+1, 10)}
 }
 
 func (s *Service) createURL(metric Metric) string {
-	var url = strings.Clone(s.config.UpdateURL)
+	var url = ""
 	if metric.Type == metrics.Gauge {
 		url += "/gauge"
 	} else {
