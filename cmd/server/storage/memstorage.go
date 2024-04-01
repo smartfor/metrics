@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"fmt"
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/metrics"
 	"strconv"
@@ -89,5 +90,14 @@ func (s *MemStorage) Get(metric metrics.MetricType, key string) (interface{}, *c
 		}
 	}
 
-	return s.Get(metric, key)
+	value, ok := s.store[metric][key]
+	if !ok {
+		return nil, &core.StorageError{
+			Msg:  fmt.Sprintf("not found by type: %s key: %s", metric, key),
+			Key:  key,
+			Type: core.NotFound,
+		}
+	}
+
+	return value, nil
 }

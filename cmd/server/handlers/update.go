@@ -28,10 +28,10 @@ func MakeUpdateHandler(s core.Storage) func(http.ResponseWriter, *http.Request) 
 
 		err := s.Set(metric, key, value)
 		if err != nil {
-			if err.Type == core.UnknownMetricType || err.Type == core.BadMetricValue {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
+			//if err.Type == core.UnknownMetricType || err.Type == core.BadMetricValue {
+			//	w.WriteHeader(http.StatusBadRequest)
+			//	return
+			//}
 
 			w.WriteHeader(http.StatusBadRequest)
 			return
