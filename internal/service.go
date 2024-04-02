@@ -22,13 +22,9 @@ type Service struct {
 }
 
 func NewService(cfg *config.Config) Service {
-	if cfg == nil {
-		cfg = &config.DefaultConfig
-	}
-
 	client := resty.
 		New().
-		SetBaseURL(cfg.UpdateURL).
+		SetBaseURL(cfg.HostEndpoint).
 		SetTimeout(cfg.ResponseTimeout)
 
 	return Service{
@@ -123,7 +119,7 @@ func (s *Service) incrementPollCounter() {
 }
 
 func (s *Service) createURL(metric Metric) string {
-	var url = ""
+	var url = "/update"
 	if metric.Type == metrics.Gauge {
 		url += "/gauge"
 	} else {

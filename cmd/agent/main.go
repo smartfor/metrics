@@ -1,8 +1,12 @@
 package main
 
-import "github.com/smartfor/metrics/internal"
+import (
+	"github.com/smartfor/metrics/internal"
+	"github.com/smartfor/metrics/internal/config"
+)
 
 func main() {
-	s := internal.NewService(nil)
+	cfg := config.ParseConfig()
+	s := internal.NewService(&cfg)
 	s.Run()
 }
