@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -26,6 +27,10 @@ func ParseConfig() Config {
 		fmt.Println("Error: unknown flags:", flag.Args())
 		flag.PrintDefaults()
 		os.Exit(1)
+	}
+
+	if !strings.HasPrefix(*hostEndpoint, "http://") && !strings.HasPrefix(*hostEndpoint, "https://") {
+		*hostEndpoint = "http://" + *hostEndpoint
 	}
 
 	return Config{
