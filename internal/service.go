@@ -10,6 +10,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -19,6 +20,7 @@ type Service struct {
 	config config.Config
 	store  map[string]Metric
 	client *resty.Client
+	mu     sync.Mutex
 }
 
 func NewService(cfg *config.Config) Service {
@@ -58,6 +60,14 @@ func (s *Service) Run() {
 func (s *Service) send() {
 	for _, v := range s.store {
 		go func(m Metric) {
+			if m.Key == "PollCount" {
+				s.mu.Lock()
+				defer func() {
+					s.resetPollCounter()
+					s.mu.Unlock()
+				}()
+			}
+
 			str := s.createURL(m)
 
 			_, err := s.client.R().
@@ -74,6 +84,9 @@ func (s *Service) send() {
 func (s *Service) poll() {
 	var ms = runtime.MemStats{}
 	runtime.ReadMemStats(&ms)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	s.store["Alloc"] = Metric{Type: metrics.Gauge, Key: "Alloc", Value: strconv.FormatUint(ms.Alloc, 10)}
 	s.store["BuckHashSys"] = Metric{Type: metrics.Gauge, Key: "BuckHashSys", Value: strconv.FormatUint(ms.BuckHashSys, 10)}
@@ -116,6 +129,10 @@ func (s *Service) incrementPollCounter() {
 	}
 	counter, _ := strconv.ParseInt(counterStr.Value, 10, 64)
 	s.store[key] = Metric{Type: metrics.Counter, Key: key, Value: strconv.FormatInt(counter+1, 10)}
+}
+
+func (s *Service) resetPollCounter() {
+	s.store["PollCount"] = Metric{Type: metrics.Counter, Key: "PollCount", Value: strconv.FormatInt(0, 10)}
 }
 
 func (s *Service) createURL(metric Metric) string {
