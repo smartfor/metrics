@@ -41,13 +41,9 @@ func (s *Service) Run() {
 
 	go func() {
 		for {
-			s.mu.Lock()
-			if len(s.store) == 0 {
-				s.mu.Unlock()
+			if s.isEmptyStore() {
 				time.Sleep(1 * time.Second)
 				continue
-			} else {
-				s.mu.Unlock()
 			}
 
 			s.send()
@@ -94,6 +90,13 @@ func (s *Service) poll() {
 
 	s.updateGaugeMetrics(&ms)
 	s.updatePollCounter()
+}
+
+func (s *Service) isEmptyStore() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return len(s.store) == 0
 }
 
 func (s *Service) updateGaugeMetrics(ms *runtime.MemStats) {
