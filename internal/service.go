@@ -41,9 +41,13 @@ func (s *Service) Run() {
 
 	go func() {
 		for {
+			s.mu.Lock()
 			if len(s.store) == 0 {
+				s.mu.Unlock()
 				time.Sleep(1 * time.Second)
 				continue
+			} else {
+				s.mu.Unlock()
 			}
 
 			s.send()
@@ -58,15 +62,15 @@ func (s *Service) Run() {
 }
 
 func (s *Service) send() {
-	for _, v := range s.store {
+	fmt.Println("start send..")
+	copied := s.cloneStore()
+
+	var wg sync.WaitGroup
+	for _, v := range copied {
+		wg.Add(1)
+
 		go func(m Metric) {
-			if m.Key == "PollCount" {
-				s.mu.Lock()
-				defer func() {
-					s.resetPollCounter()
-					s.mu.Unlock()
-				}()
-			}
+			defer wg.Done()
 
 			str := s.createURL(m)
 
@@ -79,15 +83,37 @@ func (s *Service) send() {
 			}
 		}(v)
 	}
+
+	wg.Wait()
+	fmt.Println("end send..")
+
+	s.resetPollCounter()
 }
 
 func (s *Service) poll() {
 	var ms = runtime.MemStats{}
 	runtime.ReadMemStats(&ms)
 
+	s.updateGaugeMetrics(&ms)
+	s.updatePollCounter()
+}
+
+func (s *Service) cloneStore() map[string]Metric {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	copied := make(map[string]Metric)
+	for k, v := range s.store {
+		copied[k] = v
+	}
+
+	return copied
+}
+
+func (s *Service) updateGaugeMetrics(ms *runtime.MemStats) {
+
+	s.mu.Lock()
+	fmt.Println("start update gauges...")
 	s.store["Alloc"] = Metric{Type: metrics.Gauge, Key: "Alloc", Value: strconv.FormatUint(ms.Alloc, 10)}
 	s.store["BuckHashSys"] = Metric{Type: metrics.Gauge, Key: "BuckHashSys", Value: strconv.FormatUint(ms.BuckHashSys, 10)}
 	s.store["Frees"] = Metric{Type: metrics.Gauge, Key: "Frees", Value: strconv.FormatUint(ms.Frees, 10)}
@@ -115,24 +141,37 @@ func (s *Service) poll() {
 	s.store["Sys"] = Metric{Type: metrics.Gauge, Key: "Sys", Value: strconv.FormatUint(ms.Sys, 10)}
 	s.store["TotalAlloc"] = Metric{Type: metrics.Gauge, Key: "TotalAlloc", Value: strconv.FormatUint(ms.TotalAlloc, 10)}
 	s.store["RandomValue"] = Metric{Type: metrics.Gauge, Key: "RandomValue", Value: strconv.FormatFloat(rand.Float64(), 'f', -1, 64)}
+	fmt.Println("end update gauges")
 
-	s.incrementPollCounter()
+	s.mu.Unlock()
 }
 
-func (s *Service) incrementPollCounter() {
+func (s *Service) updatePollCounter() {
+	s.mu.Lock()
+
+	defer s.mu.Unlock()
+
 	key := "PollCount"
 
 	counterStr, ok := s.store[key]
+	fmt.Println("start update poll counter, before", counterStr)
 	if !ok {
 		s.store[key] = Metric{Type: metrics.Counter, Key: key, Value: strconv.FormatInt(0, 10)}
 		counterStr = s.store[key]
 	}
 	counter, _ := strconv.ParseInt(counterStr.Value, 10, 64)
 	s.store[key] = Metric{Type: metrics.Counter, Key: key, Value: strconv.FormatInt(counter+1, 10)}
+	fmt.Println("start update poll counter, after", s.store[key].Value)
 }
 
 func (s *Service) resetPollCounter() {
+	s.mu.Lock()
+	fmt.Println("reset poll counter, before :: ", s.store["PollCount"])
 	s.store["PollCount"] = Metric{Type: metrics.Counter, Key: "PollCount", Value: strconv.FormatInt(0, 10)}
+	fmt.Println("reset poll counter, after :: ", s.store["PollCount"])
+	s.mu.Unlock()
+	fmt.Println("reset poll counter")
+
 }
 
 func (s *Service) createURL(metric Metric) string {
