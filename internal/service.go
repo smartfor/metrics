@@ -6,6 +6,7 @@ import (
 	"github.com/smartfor/metrics/internal/config"
 	"github.com/smartfor/metrics/internal/metrics"
 	"github.com/smartfor/metrics/internal/polling"
+	"github.com/smartfor/metrics/internal/utils"
 	"math/rand"
 	"os"
 	"runtime"
@@ -66,7 +67,7 @@ func (s *Service) send() {
 		go func(m Metric) {
 			defer wg.Done()
 
-			str := s.createURL(m)
+			str := utils.CreateReportURL(m)
 
 			_, err := s.client.R().
 				SetHeader("Content-Type", "application/json").
@@ -160,16 +161,4 @@ func (s *Service) resetPollCounter() {
 	fmt.Println("reset poll counter, after :: ", s.store["PollCount"])
 	s.mu.Unlock()
 	fmt.Println("reset poll counter")
-
-}
-
-func (s *Service) createURL(metric Metric) string {
-	var url = "/update"
-	if metric.Type == metrics.Gauge {
-		url += "/gauge"
-	} else {
-		url += "/counter"
-	}
-
-	return fmt.Sprintf("%s/%s/%s", url, metric.Key, metric.Value)
 }
