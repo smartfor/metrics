@@ -60,6 +60,9 @@ func (s *Service) Run() {
 
 func (s *Service) send() {
 	fmt.Println("start send..")
+
+	var pollCountReportError bool
+
 	var wg sync.WaitGroup
 	for _, v := range s.store {
 		wg.Add(1)
@@ -74,6 +77,10 @@ func (s *Service) send() {
 				Post(str)
 
 			if err != nil {
+				if m.Key == "PollCount" {
+					pollCountReportError = true
+				}
+
 				fmt.Fprintln(os.Stderr, "Send report error: ", err)
 			}
 		}(v)
@@ -82,7 +89,9 @@ func (s *Service) send() {
 	wg.Wait()
 	fmt.Println("end send..")
 
-	s.resetPollCounter()
+	if !pollCountReportError {
+		s.resetPollCounter()
+	}
 }
 
 func (s *Service) poll() {
