@@ -63,10 +63,8 @@ func (s *Service) Run() {
 
 func (s *Service) send() {
 	fmt.Println("start send..")
-	copied := s.cloneStore()
-
 	var wg sync.WaitGroup
-	for _, v := range copied {
+	for _, v := range s.store {
 		wg.Add(1)
 
 		go func(m Metric) {
@@ -96,18 +94,6 @@ func (s *Service) poll() {
 
 	s.updateGaugeMetrics(&ms)
 	s.updatePollCounter()
-}
-
-func (s *Service) cloneStore() map[string]Metric {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	copied := make(map[string]Metric)
-	for k, v := range s.store {
-		copied[k] = v
-	}
-
-	return copied
 }
 
 func (s *Service) updateGaugeMetrics(ms *runtime.MemStats) {
