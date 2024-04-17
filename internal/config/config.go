@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	HttpProto  = "http://"
-	HttpsProto = "https://"
+	HTTPProto  = "http://"
+	HTTPSProto = "https://"
 )
 
 type Config struct {
@@ -43,8 +43,8 @@ func GetConfig() Config {
 		*hostEndpoint = a
 	}
 
-	if !strings.HasPrefix(*hostEndpoint, HttpProto) && !strings.HasPrefix(*hostEndpoint, HttpsProto) {
-		*hostEndpoint = HttpProto + *hostEndpoint
+	if !strings.HasPrefix(*hostEndpoint, HTTPProto) && !strings.HasPrefix(*hostEndpoint, HTTPSProto) {
+		*hostEndpoint = HTTPProto + *hostEndpoint
 	}
 
 	return Config{

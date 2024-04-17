@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	InvalidAddressError   = errors.New("invalid address")
-	UnknownArgumentsError = errors.New(fmt.Sprint("unknown flags:", flag.Args()))
+	ErrInvalidAddress   = errors.New("invalid address")
+	ErrUnknownArguments = errors.New(fmt.Sprint("unknown flags:", flag.Args()))
 )
 
 type Config struct {
@@ -22,11 +22,11 @@ func GetConfig() (*Config, error) {
 	flag.Parse()
 
 	if err := utils.ValidateAddress(*addr); err != nil {
-		return nil, InvalidAddressError
+		return nil, ErrInvalidAddress
 	}
 
 	if len(flag.Args()) > 0 {
-		return nil, UnknownArgumentsError
+		return nil, ErrUnknownArguments
 	}
 
 	if a := os.Getenv("ADDRESS"); a != "" {
