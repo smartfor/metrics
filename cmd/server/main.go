@@ -3,9 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/smartfor/metrics/cmd/server/config"
-	"github.com/smartfor/metrics/cmd/server/handlers"
-	"github.com/smartfor/metrics/cmd/server/storage"
+	"github.com/smartfor/metrics/internal/server/config"
+	"github.com/smartfor/metrics/internal/server/handlers"
+	"github.com/smartfor/metrics/internal/server/storage"
 	"net/http"
 	"os"
 )

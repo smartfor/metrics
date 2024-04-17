@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/smartfor/metrics/cmd/server/storage"
+	"github.com/smartfor/metrics/internal/server/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"

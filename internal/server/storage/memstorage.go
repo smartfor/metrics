@@ -2,9 +2,9 @@ package storage
 
 import (
 	"fmt"
-	"github.com/smartfor/metrics/cmd/server/utils"
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/metrics"
+	"github.com/smartfor/metrics/internal/server/utils"
 	"strconv"
 	"sync"
 )
