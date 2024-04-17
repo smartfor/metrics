@@ -11,9 +11,9 @@ type Storage interface {
 type StorageErrorType int
 
 const (
-	UnknownMetricType StorageErrorType = 0
-	BadMetricValue    StorageErrorType = 1
-	NotFound          StorageErrorType = 2
+	UnknownMetricType StorageErrorType = iota
+	BadMetricValue
+	NotFound
 )
 
 type StorageError struct {

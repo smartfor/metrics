@@ -21,7 +21,7 @@ type Service struct {
 	config config.Config
 	store  map[string]Metric
 	client *resty.Client
-	mu     sync.Mutex
+	mu     *sync.Mutex
 }
 
 func NewService(cfg *config.Config) Service {
@@ -110,8 +110,9 @@ func (s *Service) isEmptyStore() bool {
 }
 
 func (s *Service) updateGaugeMetrics(ms *runtime.MemStats) {
-
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	fmt.Println("start update gauges...")
 	s.store["Alloc"] = Metric{Type: metrics.Gauge, Key: "Alloc", Value: strconv.FormatUint(ms.Alloc, 10)}
 	s.store["BuckHashSys"] = Metric{Type: metrics.Gauge, Key: "BuckHashSys", Value: strconv.FormatUint(ms.BuckHashSys, 10)}
@@ -142,7 +143,6 @@ func (s *Service) updateGaugeMetrics(ms *runtime.MemStats) {
 	s.store["RandomValue"] = Metric{Type: metrics.Gauge, Key: "RandomValue", Value: strconv.FormatFloat(rand.Float64(), 'f', -1, 64)}
 	fmt.Println("end update gauges")
 
-	s.mu.Unlock()
 }
 
 func (s *Service) updatePollCounter() {

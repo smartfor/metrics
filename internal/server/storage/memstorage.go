@@ -11,13 +11,13 @@ import (
 
 type MemStorage struct {
 	store map[metrics.MetricType]map[string]interface{}
-	mu    sync.Mutex
+	mu    *sync.Mutex
 }
 
 func NewMemStorage() *MemStorage {
 	s := &MemStorage{
 		store: make(map[metrics.MetricType]map[string]interface{}),
-		mu:    sync.Mutex{},
+		mu:    &sync.Mutex{},
 	}
 
 	s.store[metrics.Gauge] = make(map[string]interface{})
