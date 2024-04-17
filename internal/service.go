@@ -34,6 +34,7 @@ func NewService(cfg *config.Config) Service {
 		config: *cfg,
 		store:  make(map[string]Metric),
 		client: client,
+		mu:     &sync.Mutex{},
 	}
 }
 
