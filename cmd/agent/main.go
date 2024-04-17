@@ -8,7 +8,7 @@ import (
 
 func main() {
 	cfg := config.GetConfig()
-	fmt.Println("Agent config :: \n", cfg)
+	fmt.Printf("Agent config :: \n %v\n", cfg)
 
 	s := internal.NewService(&cfg)
 	s.Run()

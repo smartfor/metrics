@@ -1,15 +1,22 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/smartfor/metrics/cmd/server/config"
 	"github.com/smartfor/metrics/cmd/server/handlers"
 	"github.com/smartfor/metrics/cmd/server/storage"
 	"net/http"
+	"os"
 )
 
 func main() {
-	cfg := config.GetConfig()
+	cfg, err := config.GetConfig()
+	if err != nil {
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
 	fmt.Println("Server config :: \n", cfg)
 
 	if err := run(cfg); err != nil {
@@ -17,7 +24,7 @@ func main() {
 	}
 }
 
-func run(cfg config.Config) error {
+func run(cfg *config.Config) error {
 	metricStorage := storage.NewMemStorage()
 	r := handlers.Router(metricStorage)
 
