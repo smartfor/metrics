@@ -14,11 +14,13 @@ var (
 )
 
 type Config struct {
-	Addr string
+	Addr     string
+	LogLevel string
 }
 
 func GetConfig() (*Config, error) {
 	addr := flag.String("a", ":8080", "address and port to run server")
+	logLevel := flag.String("l", "info", "log level")
 	flag.Parse()
 
 	if err := utils.ValidateAddress(*addr); err != nil {
@@ -33,5 +35,9 @@ func GetConfig() (*Config, error) {
 		*addr = a
 	}
 
-	return &Config{Addr: *addr}, nil
+	if envLogLevel := os.Getenv("LOG_LEVEL"); envLogLevel != "" {
+		*logLevel = envLogLevel
+	}
+
+	return &Config{Addr: *addr, LogLevel: *logLevel}, nil
 }

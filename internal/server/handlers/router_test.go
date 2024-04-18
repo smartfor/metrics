@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"github.com/smartfor/metrics/internal/logger"
 	"github.com/smartfor/metrics/internal/server/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -35,8 +37,13 @@ func TestRouter(t *testing.T) {
 		response string
 	}
 
+	err := logger.Initialize("Info")
+	if err != nil {
+		log.Fatalf("Error initialize logger ")
+	}
+
 	s := storage.NewMemStorage()
-	ts := httptest.NewServer(Router(s))
+	ts := httptest.NewServer(Router(s, logger.Log))
 	defer ts.Close()
 
 	tests := []struct {

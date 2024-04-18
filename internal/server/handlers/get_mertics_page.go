@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-func MakeGetMetricsPageHandler(s core.Storage) func(http.ResponseWriter, *http.Request) {
+func MakeGetMetricsPageHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m, err := s.GetAll()
 		if err != nil {

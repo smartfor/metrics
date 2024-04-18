@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-func MakeGetValueHandler(s core.Storage) func(http.ResponseWriter, *http.Request) {
+func MakeGetValueHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metric := metrics.NewMetricType(chi.URLParam(r, "type"))
 		key := chi.URLParam(r, "key")

@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
+	"github.com/smartfor/metrics/internal/logger"
 	"github.com/smartfor/metrics/internal/server/config"
 	"github.com/smartfor/metrics/internal/server/handlers"
 	"github.com/smartfor/metrics/internal/server/storage"
+	"go.uber.org/zap"
 	"log"
 	"net/http"
 	"os"
@@ -18,14 +19,17 @@ import (
 func main() {
 	cfg, err := config.GetConfig()
 	if err != nil {
-		fmt.Println("Error loading configuration:", err)
-		os.Exit(1)
+		log.Fatalf("Error loading configuration: %s", err)
 	}
 
-	log.Println("Server config:", cfg)
+	if err := logger.Initialize(cfg.LogLevel); err != nil {
+		log.Fatalf("Error initialize logger: %s", err)
+	}
+
+	logger.Log.Sugar().Infof("Server config: %+v", cfg)
 
 	metricStorage := storage.NewMemStorage()
-	router := handlers.Router(metricStorage)
+	router := handlers.Router(metricStorage, logger.Log)
 
 	server := &http.Server{
 		Addr:    cfg.Addr,
@@ -37,19 +41,20 @@ func main() {
 
 	go func() {
 		<-done
-		log.Println("Shutting down server...")
+		logger.Log.Info("Shutting down server...")
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
 		if err := server.Shutdown(ctx); err != nil {
-			log.Fatalf("Server Shutdown Failed:%+v", err)
+			logger.Log.Fatal("Server Shutdown Failed: ", zap.Error(err))
 		}
-		log.Println("Server gracefully stopped.")
+
+		logger.Log.Info("Server gracefully stopped.")
 	}()
 
 	log.Printf("Server is ready to handle requests at %s", cfg.Addr)
 	if err := server.ListenAndServe(); err != nil && errors.Is(err, http.ErrServerClosed) {
-		log.Fatalf("could not listen on %s: %v", cfg.Addr, err)
+		logger.Log.Fatal("Error not ")
 	}
 }
