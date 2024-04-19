@@ -4,7 +4,6 @@ import (
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/metrics"
 	"github.com/smartfor/metrics/internal/server/utils"
-	"strconv"
 	"sync"
 )
 
@@ -32,7 +31,7 @@ func (s *MemStorage) Set(metric metrics.MetricType, key string, value string) er
 	switch metric {
 	case metrics.Gauge:
 		{
-			val, err := strconv.ParseFloat(value, 64)
+			val, err := utils.GaugeFromString(value)
 			if err != nil {
 				return core.ErrBadMetricValue
 			}
@@ -42,7 +41,7 @@ func (s *MemStorage) Set(metric metrics.MetricType, key string, value string) er
 
 	case metrics.Counter:
 		{
-			val, err := strconv.ParseInt(value, 10, 64)
+			val, err := utils.CounterFromString(value)
 			if err != nil {
 				return core.ErrBadMetricValue
 			}

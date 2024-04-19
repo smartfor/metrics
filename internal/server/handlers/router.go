@@ -16,7 +16,9 @@ func Router(s core.Storage, logger *zap.Logger) chi.Router {
 
 	r.Get("/", MakeGetMetricsPageHandler(s))
 	r.Post("/update/{type}/{key}/{value}", MakeUpdateHandler(s))
+	r.Post("/update/", MakeUpdateJsonHandler(s))
 	r.Get("/value/{type}/{key}", MakeGetValueHandler(s))
+	r.Post("/value/", MakeGetValueJsonHandler(s))
 
 	return r
 }
