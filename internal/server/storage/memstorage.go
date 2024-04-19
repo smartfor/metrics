@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"fmt"
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/metrics"
 	"github.com/smartfor/metrics/internal/server/utils"
@@ -26,7 +25,7 @@ func NewMemStorage() *MemStorage {
 	return s
 }
 
-func (s *MemStorage) Set(metric metrics.MetricType, key string, value string) *core.StorageError {
+func (s *MemStorage) Set(metric metrics.MetricType, key string, value string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -35,12 +34,7 @@ func (s *MemStorage) Set(metric metrics.MetricType, key string, value string) *c
 		{
 			val, err := strconv.ParseFloat(value, 64)
 			if err != nil {
-				return &core.StorageError{
-					Msg:   err.Error(),
-					Key:   key,
-					Value: value,
-					Type:  core.BadMetricValue,
-				}
+				return core.ErrBadMetricValue
 			}
 
 			s.store[metric][key] = val
@@ -50,12 +44,7 @@ func (s *MemStorage) Set(metric metrics.MetricType, key string, value string) *c
 		{
 			val, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				return &core.StorageError{
-					Msg:   err.Error(),
-					Key:   key,
-					Value: value,
-					Type:  core.BadMetricValue,
-				}
+				return core.ErrBadMetricValue
 			}
 
 			if _, ok := s.store[metric][key]; !ok {
@@ -67,37 +56,24 @@ func (s *MemStorage) Set(metric metrics.MetricType, key string, value string) *c
 
 	case metrics.Unknown:
 		{
-			return &core.StorageError{
-				Msg:   "unknown metric type",
-				Key:   key,
-				Value: value,
-				Type:  core.UnknownMetricType,
-			}
+			return core.ErrUnknownMetricType
 		}
 	}
 
 	return nil
 }
 
-func (s *MemStorage) Get(metric metrics.MetricType, key string) (string, *core.StorageError) {
+func (s *MemStorage) Get(metric metrics.MetricType, key string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if metric == metrics.Unknown {
-		return "", &core.StorageError{
-			Msg:  "unknown Metric Type",
-			Key:  key,
-			Type: core.UnknownMetricType,
-		}
+		return "", core.ErrUnknownMetricType
 	}
 
 	value, ok := s.store[metric][key]
 	if !ok {
-		return "", &core.StorageError{
-			Msg:  fmt.Sprintf("not found by type: %s key: %s", metric, key),
-			Key:  key,
-			Type: core.NotFound,
-		}
+		return "", core.ErrNotFound
 	}
 
 	if metric == metrics.Gauge {
@@ -107,7 +83,7 @@ func (s *MemStorage) Get(metric metrics.MetricType, key string) (string, *core.S
 	}
 }
 
-func (s *MemStorage) GetAll() (map[string]string, *core.StorageError) {
+func (s *MemStorage) GetAll() (map[string]string, error) {
 	var out = make(map[string]string)
 
 	s.mu.Lock()

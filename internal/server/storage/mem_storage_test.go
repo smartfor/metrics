@@ -8,7 +8,6 @@ import (
 )
 
 func TestMemStorage_Get(t *testing.T) {
-
 	tests := []struct {
 		name       string
 		metricType metrics.MetricType
@@ -124,7 +123,10 @@ func TestMemStorage_Set(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := NewMemStorage()
-			err := s.Set(tt.metricType, tt.key, tt.value)
+
+			mType := metrics.NewMetricType(string(tt.metricType))
+			err := s.Set(mType, tt.key, tt.value)
+
 			if tt.wantErr {
 				require.Error(t, err)
 			}
