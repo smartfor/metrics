@@ -38,8 +38,9 @@ func testRequest(
 
 func TestRouter(t *testing.T) {
 	type want struct {
-		code     int
-		response interface{}
+		code        int
+		response    interface{}
+		contentType string
 	}
 
 	err := logger.Initialize("Info")
@@ -196,7 +197,8 @@ func TestRouter(t *testing.T) {
 			method:      http.MethodPost,
 			requestBody: `{ "id": "key1", "type": "gauge", "value": 1 }`,
 			want: want{
-				code: http.StatusOK,
+				code:        http.StatusOK,
+				contentType: "application/json",
 			},
 		},
 		{
@@ -205,7 +207,8 @@ func TestRouter(t *testing.T) {
 			method:      http.MethodPost,
 			requestBody: `{ "id": "key1", "type": "gauge" }`,
 			want: want{
-				code: http.StatusOK,
+				code:        http.StatusOK,
+				contentType: "application/json",
 				response: metrics.Metrics{
 					ID:    "key1",
 					MType: "gauge",
@@ -219,7 +222,8 @@ func TestRouter(t *testing.T) {
 			requestBody: `{ "id": "counterKey1", "type": "counter", "delta": 2}`,
 			method:      http.MethodPost,
 			want: want{
-				code: http.StatusOK,
+				code:        http.StatusOK,
+				contentType: "application/json",
 				response: metrics.Metrics{
 					ID:    "counterKey1",
 					MType: "counter",
@@ -233,7 +237,8 @@ func TestRouter(t *testing.T) {
 			method:      http.MethodPost,
 			requestBody: `{ "id": "counterKey1", "type": "counter"}`,
 			want: want{
-				code: http.StatusOK,
+				code:        http.StatusOK,
+				contentType: "application/json",
 				response: metrics.Metrics{
 					ID:    "counterKey1",
 					MType: "counter",
@@ -247,7 +252,8 @@ func TestRouter(t *testing.T) {
 			method:      http.MethodPost,
 			requestBody: `{ "id": "key1", "type": "foo"}`,
 			want: want{
-				code: http.StatusNotFound,
+				code:        http.StatusNotFound,
+				contentType: "application/json",
 			},
 		},
 		{
@@ -256,7 +262,8 @@ func TestRouter(t *testing.T) {
 			requestBody: `{ "id": "foo", "type": "gauge"}`,
 			method:      http.MethodPost,
 			want: want{
-				code: http.StatusNotFound,
+				code:        http.StatusNotFound,
+				contentType: "application/json",
 			},
 		},
 		{
@@ -265,7 +272,8 @@ func TestRouter(t *testing.T) {
 			requestBody: `{ "id": "foo", "type": "counter"}`,
 			method:      http.MethodPost,
 			want: want{
-				code: http.StatusNotFound,
+				code:        http.StatusNotFound,
+				contentType: "application/json",
 			},
 		},
 		{
@@ -274,34 +282,38 @@ func TestRouter(t *testing.T) {
 			method:      http.MethodPost,
 			requestBody: `{ "id": "key1", "value": 2, "delta": 2 }`,
 			want: want{
-				code: http.StatusBadRequest,
+				code:        http.StatusBadRequest,
+				contentType: "application/json",
 			},
 		},
 		{
 			name:        "JSON :: Negative - Unknown metric type passed",
 			requestURL:  "/update/",
-			requestBody: `{ "id": "key1", type:"foo", "value": 2, "delta": 2 }`,
+			requestBody: `{ "id": "key1", "type":"foo", "value": 2, "delta": 2 }`,
 			method:      http.MethodPost,
 			want: want{
-				code: http.StatusBadRequest,
+				code:        http.StatusBadRequest,
+				contentType: "application/json",
 			},
 		},
 		{
 			name:        "JSON :: Negative - invalid value passed",
 			requestURL:  "/update/",
 			method:      http.MethodPost,
-			requestBody: `{ "id": "key1", type:"gauge", "value": "asdasd"}`,
+			requestBody: `{ "id": "key1", "type":"gauge", "value": "asdasd"}`,
 			want: want{
-				code: http.StatusBadRequest,
+				code:        http.StatusBadRequest,
+				contentType: "application/json",
 			},
 		},
 		{
 			name:        "JSON :: Negative - invalid value passed",
 			requestURL:  "/update/",
-			requestBody: `{ "id": "key1", type:"counter", "delta": "asdasd"}`,
+			requestBody: `{ "id": "key1", "type":"counter", "delta": "asdasd"}`,
 			method:      http.MethodPost,
 			want: want{
-				code: http.StatusBadRequest,
+				code:        http.StatusBadRequest,
+				contentType: "application/json",
 			},
 		},
 	}
@@ -312,6 +324,14 @@ func TestRouter(t *testing.T) {
 			defer resp.Body.Close()
 
 			assert.Equal(t, test.want.code, resp.StatusCode)
+			if test.want.contentType != "" {
+				assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
+			}
+
+			if resp.StatusCode >= 400 {
+				return
+			}
+
 			if test.requestBody != "" {
 				if test.requestBody != "" && test.want.response != nil {
 					var actual metrics.Metrics
@@ -326,6 +346,10 @@ func TestRouter(t *testing.T) {
 				if test.want.response != nil {
 					assert.Equal(t, test.want.response, body)
 				}
+			}
+
+			if test.want.contentType != "" {
+				assert.Equal(t, test.want.contentType, resp.Header.Get("Content-Type"))
 			}
 		})
 	}
