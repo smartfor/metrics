@@ -1,11 +1,7 @@
 package handlers
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
 	"github.com/smartfor/metrics/internal/logger"
-	"github.com/smartfor/metrics/internal/metrics"
 	"github.com/smartfor/metrics/internal/server/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,7 +35,7 @@ func testRequest(
 func TestRouter(t *testing.T) {
 	type want struct {
 		code        int
-		response    interface{}
+		response    string
 		contentType string
 	}
 
@@ -209,11 +205,11 @@ func TestRouter(t *testing.T) {
 			want: want{
 				code:        http.StatusOK,
 				contentType: "application/json",
-				response: metrics.Metrics{
-					ID:    "key1",
-					MType: "gauge",
-					Value: valueRef(1),
-				},
+				response: `{
+					"id": "key1",
+					"type": "gauge",
+					"value": 1
+				}`,
 			},
 		},
 		{
@@ -224,11 +220,11 @@ func TestRouter(t *testing.T) {
 			want: want{
 				code:        http.StatusOK,
 				contentType: "application/json",
-				response: metrics.Metrics{
-					ID:    "counterKey1",
-					MType: "counter",
-					Delta: deltaRef(2),
-				},
+				response: `{
+					"id": "counterKey1",
+					"type": "counter",
+					"delta": 2
+				}`,
 			},
 		},
 		{
@@ -239,11 +235,7 @@ func TestRouter(t *testing.T) {
 			want: want{
 				code:        http.StatusOK,
 				contentType: "application/json",
-				response: metrics.Metrics{
-					ID:    "counterKey1",
-					MType: "counter",
-					Delta: deltaRef(2),
-				},
+				response:    `{ "id": "counterKey1", "type": "counter", "delta": 2}`,
 			},
 		},
 		{
@@ -333,17 +325,11 @@ func TestRouter(t *testing.T) {
 			}
 
 			if test.requestBody != "" {
-				if test.requestBody != "" && test.want.response != nil {
-					var actual metrics.Metrics
-					err := json.NewDecoder(bytes.NewReader([]byte(body))).Decode(&actual)
-					if err != nil {
-						fmt.Println(err)
-					}
-
-					assert.Equal(t, test.want.response, actual)
+				if test.requestBody != "" && test.want.response != "" {
+					assert.JSONEq(t, test.want.response, body)
 				}
 			} else {
-				if test.want.response != nil {
+				if test.want.response != "" {
 					assert.Equal(t, test.want.response, body)
 				}
 			}
