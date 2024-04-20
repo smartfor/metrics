@@ -8,6 +8,7 @@ import (
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/metrics"
 	"github.com/smartfor/metrics/internal/polling"
+	"github.com/smartfor/metrics/internal/server/utils"
 	"math/rand"
 	"os"
 	"runtime"
@@ -76,9 +77,10 @@ func (s *Service) send() {
 			defer wg.Done()
 
 			var (
-				err    error
-				metric *metrics.Metrics
-				body   []byte
+				err        error
+				metric     *metrics.Metrics
+				body       []byte
+				compressed []byte
 			)
 
 			if metric, err = metrics.FromMetricModel(m); err != nil {
@@ -91,9 +93,16 @@ func (s *Service) send() {
 				return
 			}
 
+			if compressed, err = utils.GzipCompress(body); err != nil {
+				fmt.Fprintln(os.Stderr, "Send report error: ", err)
+				return
+			}
+
 			_, err = s.client.R().
 				SetHeader("Content-Type", "application/json").
-				SetBody(body).
+				SetHeader("Accept-Encoding", "gzip").
+				SetHeader("Content-Encoding", "gzip").
+				SetBody(compressed).
 				Post(UpdateURL)
 
 			if err != nil {
@@ -168,7 +177,6 @@ func (s *Service) updateGaugeMetrics(ms *runtime.MemStats) {
 
 func (s *Service) updatePollCounter() {
 	s.mu.Lock()
-
 	defer s.mu.Unlock()
 
 	key := "PollCount"

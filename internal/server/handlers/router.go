@@ -10,7 +10,8 @@ import (
 func Router(s core.Storage, logger *zap.Logger) chi.Router {
 	r := chi.NewRouter()
 
-	r.Use(middlewares.MakeLogger(logger))
+	r.Use(middlewares.MakeLoggerMiddleware(logger))
+	r.Use(middlewares.GzipMiddleware)
 
 	r.Get("/", MakeGetMetricsPageHandler(s))
 	r.Post("/update/{type}/{key}/{value}", MakeUpdateHandler(s))

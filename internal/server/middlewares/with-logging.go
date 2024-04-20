@@ -35,7 +35,7 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 	r.responseData.status = statusCode
 }
 
-func MakeLogger(logger *zap.Logger) func(h http.Handler) http.Handler {
+func MakeLoggerMiddleware(logger *zap.Logger) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			sugar := logger.Sugar()
