@@ -11,7 +11,7 @@ import (
 
 func MakeUpdateHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		metric := metrics.NewMetricType(chi.URLParam(r, "type"))
+		metric := core.NewMetricType(chi.URLParam(r, "type"))
 		key := chi.URLParam(r, "key")
 		value := chi.URLParam(r, "value")
 
@@ -34,12 +34,12 @@ func MakeUpdateJsonHandler(s core.Storage) func(w http.ResponseWriter, r *http.R
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		mType := metrics.NewMetricType(req.MType)
+		mType := core.NewMetricType(req.MType)
 
 		switch mType {
-		case metrics.Counter:
+		case core.Counter:
 			{
-				err := s.Set(metrics.NewMetricType(req.MType), req.ID, utils.CounterAsString(*req.Delta))
+				err := s.Set(core.NewMetricType(req.MType), req.ID, utils.CounterAsString(*req.Delta))
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusBadRequest)
 					return
@@ -63,9 +63,9 @@ func MakeUpdateJsonHandler(s core.Storage) func(w http.ResponseWriter, r *http.R
 					return
 				}
 			}
-		case metrics.Gauge:
+		case core.Gauge:
 			{
-				err := s.Set(metrics.NewMetricType(req.MType), req.ID, utils.GaugeAsString(*req.Value))
+				err := s.Set(core.NewMetricType(req.MType), req.ID, utils.GaugeAsString(*req.Value))
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusBadRequest)
 					return

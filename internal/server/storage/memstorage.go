@@ -2,34 +2,33 @@ package storage
 
 import (
 	"github.com/smartfor/metrics/internal/core"
-	"github.com/smartfor/metrics/internal/metrics"
 	"github.com/smartfor/metrics/internal/server/utils"
 	"sync"
 )
 
 type MemStorage struct {
-	store map[metrics.MetricType]map[string]interface{}
+	store map[core.MetricType]map[string]interface{}
 	mu    *sync.Mutex
 }
 
 func NewMemStorage() *MemStorage {
 	s := &MemStorage{
-		store: make(map[metrics.MetricType]map[string]interface{}),
+		store: make(map[core.MetricType]map[string]interface{}),
 		mu:    &sync.Mutex{},
 	}
 
-	s.store[metrics.Gauge] = make(map[string]interface{})
-	s.store[metrics.Counter] = make(map[string]interface{})
+	s.store[core.Gauge] = make(map[string]interface{})
+	s.store[core.Counter] = make(map[string]interface{})
 
 	return s
 }
 
-func (s *MemStorage) Set(metric metrics.MetricType, key string, value string) error {
+func (s *MemStorage) Set(metric core.MetricType, key string, value string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	switch metric {
-	case metrics.Gauge:
+	case core.Gauge:
 		{
 			val, err := utils.GaugeFromString(value)
 			if err != nil {
@@ -39,7 +38,7 @@ func (s *MemStorage) Set(metric metrics.MetricType, key string, value string) er
 			s.store[metric][key] = val
 		}
 
-	case metrics.Counter:
+	case core.Counter:
 		{
 			val, err := utils.CounterFromString(value)
 			if err != nil {
@@ -53,7 +52,7 @@ func (s *MemStorage) Set(metric metrics.MetricType, key string, value string) er
 			s.store[metric][key] = s.store[metric][key].(int64) + val
 		}
 
-	case metrics.Unknown:
+	case core.Unknown:
 		{
 			return core.ErrUnknownMetricType
 		}
@@ -62,11 +61,11 @@ func (s *MemStorage) Set(metric metrics.MetricType, key string, value string) er
 	return nil
 }
 
-func (s *MemStorage) Get(metric metrics.MetricType, key string) (string, error) {
+func (s *MemStorage) Get(metric core.MetricType, key string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if metric == metrics.Unknown {
+	if metric == core.Unknown {
 		return "", core.ErrUnknownMetricType
 	}
 
@@ -75,7 +74,7 @@ func (s *MemStorage) Get(metric metrics.MetricType, key string) (string, error) 
 		return "", core.ErrNotFound
 	}
 
-	if metric == metrics.Gauge {
+	if metric == core.Gauge {
 		return utils.GaugeAsString(value), nil
 	} else {
 		return utils.CounterAsString(value), nil
@@ -88,11 +87,11 @@ func (s *MemStorage) GetAll() (map[string]string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for k, v := range s.store[metrics.Gauge] {
+	for k, v := range s.store[core.Gauge] {
 		out[k] = utils.GaugeAsString(v)
 	}
 
-	for k, v := range s.store[metrics.Counter] {
+	for k, v := range s.store[core.Counter] {
 		out[k] = utils.CounterAsString(v)
 	}
 

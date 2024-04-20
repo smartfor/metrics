@@ -11,7 +11,7 @@ import (
 
 func MakeGetValueHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		metric := metrics.NewMetricType(chi.URLParam(r, "type"))
+		metric := core.NewMetricType(chi.URLParam(r, "type"))
 		key := chi.URLParam(r, "key")
 
 		v, err := s.Get(metric, key)
@@ -33,7 +33,7 @@ func MakeGetValueJsonHandler(s core.Storage) func(w http.ResponseWriter, r *http
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		mType := metrics.NewMetricType(req.MType)
+		mType := core.NewMetricType(req.MType)
 
 		value, err := s.Get(mType, req.ID)
 		if err != nil {
@@ -42,7 +42,7 @@ func MakeGetValueJsonHandler(s core.Storage) func(w http.ResponseWriter, r *http
 		}
 
 		switch mType {
-		case metrics.Counter:
+		case core.Counter:
 			{
 				v, err := utils.CounterFromString(value)
 				if err != nil {
@@ -51,7 +51,7 @@ func MakeGetValueJsonHandler(s core.Storage) func(w http.ResponseWriter, r *http
 				}
 				req.Delta = &v
 			}
-		case metrics.Gauge:
+		case core.Gauge:
 			{
 				v, err := utils.GaugeFromString(value)
 				if err != nil {

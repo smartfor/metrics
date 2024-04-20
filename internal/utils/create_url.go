@@ -2,13 +2,13 @@ package utils
 
 import (
 	"fmt"
-	"github.com/smartfor/metrics/internal/metrics"
+	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/polling"
 )
 
-func CreateReportURL(metric polling.Metric) string {
+func CreateReportURL(metric polling.MetricsModel) string {
 	var url = "/update"
-	if metric.Type == metrics.Gauge {
+	if metric.Type == core.Gauge {
 		url += "/gauge"
 	} else {
 		url += "/counter"
