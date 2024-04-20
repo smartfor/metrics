@@ -143,6 +143,7 @@ func (s *Service) updateGaugeMetrics(ms *runtime.MemStats) {
 	s.store["HeapIdle"] = Metric{Type: core.Gauge, Key: "HeapIdle", Value: strconv.FormatUint(ms.HeapIdle, 10)}
 	s.store["HeapInuse"] = Metric{Type: core.Gauge, Key: "HeapInuse", Value: strconv.FormatUint(ms.HeapInuse, 10)}
 	s.store["HeapReleased"] = Metric{Type: core.Gauge, Key: "HeapReleased", Value: strconv.FormatUint(ms.HeapReleased, 10)}
+	s.store["HeapObjects"] = Metric{Type: core.Gauge, Key: "HeapObjects", Value: strconv.FormatUint(ms.HeapObjects, 10)}
 	s.store["HeapSys"] = Metric{Type: core.Gauge, Key: "HeapSys", Value: strconv.FormatUint(ms.HeapSys, 10)}
 	s.store["LastGC"] = Metric{Type: core.Gauge, Key: "LastGC", Value: strconv.FormatUint(ms.LastGC, 10)}
 	s.store["Lookups"] = Metric{Type: core.Gauge, Key: "Lookups", Value: strconv.FormatUint(ms.Lookups, 10)}
