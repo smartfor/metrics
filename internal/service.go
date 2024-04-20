@@ -31,6 +31,7 @@ func NewService(cfg *config.Config) Service {
 	client := resty.
 		New().
 		SetBaseURL(cfg.HostEndpoint).
+		SetHeader("Content-Type", "application/json").
 		SetTimeout(cfg.ResponseTimeout)
 
 	return Service{
@@ -63,7 +64,7 @@ func (s *Service) Run() {
 }
 
 func (s *Service) send() {
-	fmt.Println("start send..")
+	//fmt.Println("start send..")
 
 	var pollCountReportError bool
 
@@ -106,7 +107,7 @@ func (s *Service) send() {
 	}
 
 	wg.Wait()
-	fmt.Println("end send..")
+	//fmt.Println("end send..")
 
 	if !pollCountReportError {
 		s.resetPollCounter()
@@ -132,7 +133,7 @@ func (s *Service) updateGaugeMetrics(ms *runtime.MemStats) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	fmt.Println("start update gauges...")
+	//fmt.Println("start update gauges...")
 	s.store["Alloc"] = Metric{Type: core.Gauge, Key: "Alloc", Value: strconv.FormatUint(ms.Alloc, 10)}
 	s.store["BuckHashSys"] = Metric{Type: core.Gauge, Key: "BuckHashSys", Value: strconv.FormatUint(ms.BuckHashSys, 10)}
 	s.store["Frees"] = Metric{Type: core.Gauge, Key: "Frees", Value: strconv.FormatUint(ms.Frees, 10)}
@@ -160,7 +161,7 @@ func (s *Service) updateGaugeMetrics(ms *runtime.MemStats) {
 	s.store["Sys"] = Metric{Type: core.Gauge, Key: "Sys", Value: strconv.FormatUint(ms.Sys, 10)}
 	s.store["TotalAlloc"] = Metric{Type: core.Gauge, Key: "TotalAlloc", Value: strconv.FormatUint(ms.TotalAlloc, 10)}
 	s.store["RandomValue"] = Metric{Type: core.Gauge, Key: "RandomValue", Value: strconv.FormatFloat(rand.Float64(), 'f', -1, 64)}
-	fmt.Println("end update gauges")
+	//fmt.Println("end update gauges")
 
 }
 
@@ -172,21 +173,21 @@ func (s *Service) updatePollCounter() {
 	key := "PollCount"
 
 	counterStr, ok := s.store[key]
-	fmt.Println("start update poll counter, before", counterStr)
+	//fmt.Println("start update poll counter, before", counterStr)
 	if !ok {
 		s.store[key] = Metric{Type: core.Counter, Key: key, Value: strconv.FormatInt(0, 10)}
 		counterStr = s.store[key]
 	}
 	counter, _ := strconv.ParseInt(counterStr.Value, 10, 64)
 	s.store[key] = Metric{Type: core.Counter, Key: key, Value: strconv.FormatInt(counter+1, 10)}
-	fmt.Println("start update poll counter, after", s.store[key].Value)
+	//fmt.Println("start update poll counter, after", s.store[key].Value)
 }
 
 func (s *Service) resetPollCounter() {
 	s.mu.Lock()
-	fmt.Println("reset poll counter, before :: ", s.store["PollCount"])
+	//fmt.Println("reset poll counter, before :: ", s.store["PollCount"])
 	s.store["PollCount"] = Metric{Type: core.Counter, Key: "PollCount", Value: strconv.FormatInt(0, 10)}
-	fmt.Println("reset poll counter, after :: ", s.store["PollCount"])
+	//fmt.Println("reset poll counter, after :: ", s.store["PollCount"])
 	s.mu.Unlock()
-	fmt.Println("reset poll counter")
+	//fmt.Println("reset poll counter")
 }

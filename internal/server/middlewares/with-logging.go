@@ -66,7 +66,7 @@ func MakeLogger(logger *zap.Logger) func(h http.Handler) http.Handler {
 			sugar.Infoln(
 				"uri", r.RequestURI,
 				"method", r.Method,
-				"request", string(bodyBytes),
+				//"request", string(bodyBytes),
 				"duration", duration,
 				"status", responseData.status,
 				"size", responseData.size,

@@ -1,7 +1,10 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/json"
 	"github.com/smartfor/metrics/internal/logger"
+	"github.com/smartfor/metrics/internal/metrics"
 	"github.com/smartfor/metrics/internal/server/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -9,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -17,13 +21,13 @@ func testRequest(
 	ts *httptest.Server,
 	method string,
 	path string,
+	body string,
 ) (*http.Response, string) {
-	req, err := http.NewRequest(method, ts.URL+path, nil)
+	req, err := http.NewRequest(method, ts.URL+path, strings.NewReader(body))
 	require.NoError(t, err)
 
 	resp, err := ts.Client().Do(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
@@ -34,7 +38,7 @@ func testRequest(
 func TestRouter(t *testing.T) {
 	type want struct {
 		code     int
-		response string
+		response interface{}
 	}
 
 	err := logger.Initialize("Info")
@@ -47,10 +51,11 @@ func TestRouter(t *testing.T) {
 	defer ts.Close()
 
 	tests := []struct {
-		name       string
-		method     string
-		requestURL string
-		want       want
+		name        string
+		method      string
+		requestURL  string
+		requestBody string
+		want        want
 	}{
 		{
 			name:       "Positive #1",
@@ -182,18 +187,153 @@ func TestRouter(t *testing.T) {
 				code: http.StatusOK,
 			},
 		},
+
+		// JSON HANDLERS TESTS
+		{
+			name:        "JSON :: Positive  #1",
+			requestURL:  "/update/",
+			method:      http.MethodPost,
+			requestBody: `{ "id": "key1", "type": "gauge", "value": 1 }`,
+			want: want{
+				code: http.StatusOK,
+			},
+		},
+		{
+			name:        "JSON :: Positive - Get gauge metric value",
+			requestURL:  "/value/",
+			method:      http.MethodPost,
+			requestBody: `{ "id": "key1", "type": "gauge" }`,
+			want: want{
+				code: http.StatusOK,
+				response: metrics.Metrics{
+					ID:    "key1",
+					MType: "gauge",
+					Value: valueRef(1),
+				},
+			},
+		},
+		{
+			name:        "JSON :: Positive #2",
+			requestURL:  "/update/",
+			requestBody: `{ "id": "counterKey1", "type": "counter", "delta": 2}`,
+			method:      http.MethodPost,
+			want: want{
+				code: http.StatusOK,
+				response: metrics.Metrics{
+					ID:    "counterKey1",
+					MType: "counter",
+					Delta: deltaRef(2),
+				},
+			},
+		},
+		{
+			name:        "JSON :: Positive - Get counter metric value",
+			requestURL:  "/value/",
+			method:      http.MethodPost,
+			requestBody: `{ "id": "counterKey1", "type": "counter"}`,
+			want: want{
+				code: http.StatusOK,
+				response: metrics.Metrics{
+					ID:    "counterKey1",
+					MType: "counter",
+					Delta: deltaRef(2),
+				},
+			},
+		},
+		{
+			name:        "JSON :: Negative - Unknown metric type",
+			requestURL:  "/value/",
+			method:      http.MethodPost,
+			requestBody: `{ "id": "key1", "type": "foo"}`,
+			want: want{
+				code: http.StatusNotFound,
+			},
+		},
+		{
+			name:        "JSON :: Negative - Not found gauge metric",
+			requestURL:  "/value/",
+			requestBody: `{ "id": "foo", "type": "gauge"}`,
+			method:      http.MethodPost,
+			want: want{
+				code: http.StatusNotFound,
+			},
+		},
+		{
+			name:        "JSON :: Negative - Not found counter metric",
+			requestURL:  "/value/",
+			requestBody: `{ "id": "foo", "type": "counter"}`,
+			method:      http.MethodPost,
+			want: want{
+				code: http.StatusNotFound,
+			},
+		},
+		{
+			name:        "JSON :: Negative - Metric type not passed",
+			requestURL:  "/update/",
+			method:      http.MethodPost,
+			requestBody: `{ "id": "key1", "value": 2, "delta": 2 }`,
+			want: want{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name:        "JSON :: Negative - Unknown metric type passed",
+			requestURL:  "/update/",
+			requestBody: `{ "id": "key1", type:"foo", "value": 2, "delta": 2 }`,
+			method:      http.MethodPost,
+			want: want{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name:        "JSON :: Negative - invalid value passed",
+			requestURL:  "/update/",
+			method:      http.MethodPost,
+			requestBody: `{ "id": "key1", type:"gauge", "value": "asdasd"}`,
+			want: want{
+				code: http.StatusBadRequest,
+			},
+		},
+		{
+			name:        "JSON :: Negative - invalid value passed",
+			requestURL:  "/update/",
+			requestBody: `{ "id": "key1", type:"counter", "delta": "asdasd"}`,
+			method:      http.MethodPost,
+			want: want{
+				code: http.StatusBadRequest,
+			},
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			resp, body := testRequest(t, ts, test.method, test.requestURL)
+			resp, body := testRequest(t, ts, test.method, test.requestURL, test.requestBody)
 			defer resp.Body.Close()
 
 			assert.Equal(t, test.want.code, resp.StatusCode)
+			if test.requestBody != "" {
+				if test.requestBody != "" && test.want.response != nil {
+					var actual metrics.Metrics
+					err := json.NewDecoder(bytes.NewReader([]byte(body))).Decode(&actual)
+					if err != nil {
+						log.Printf(err.Error())
+					}
 
-			if test.want.response != "" {
-				assert.Equal(t, test.want.response, body)
+					assert.Equal(t, test.want.response, actual)
+				}
+			} else {
+				if test.want.response != nil {
+					assert.Equal(t, test.want.response, body)
+				}
 			}
 		})
 	}
+}
+
+func valueRef(float float64) *float64 {
+	return &float
+}
+
+func deltaRef(int int64) *int64 {
+	return &int
 }

@@ -32,12 +32,11 @@ func MakeGetValueJSONHandler(s core.Storage) func(w http.ResponseWriter, r *http
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
 		mType := core.NewMetricType(req.MType)
 
 		value, err := s.Get(mType, req.ID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
 
@@ -46,7 +45,7 @@ func MakeGetValueJSONHandler(s core.Storage) func(w http.ResponseWriter, r *http
 			{
 				v, err := utils.CounterFromString(value)
 				if err != nil {
-					http.Error(w, err.Error(), http.StatusBadRequest)
+					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
 				req.Delta = &v
@@ -55,21 +54,22 @@ func MakeGetValueJSONHandler(s core.Storage) func(w http.ResponseWriter, r *http
 			{
 				v, err := utils.GaugeFromString(value)
 				if err != nil {
-					http.Error(w, err.Error(), http.StatusBadRequest)
+					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
 				req.Value = &v
 			}
 		default:
-			http.Error(w, core.ErrUnknownMetricType.Error(), http.StatusInternalServerError)
+			http.Error(w, core.ErrUnknownMetricType.Error(), http.StatusBadRequest)
 			return
 		}
 
 		if err = json.NewEncoder(w).Encode(req); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 	}
 }

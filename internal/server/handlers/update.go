@@ -35,13 +35,12 @@ func MakeUpdateJSONHandler(s core.Storage) func(w http.ResponseWriter, r *http.R
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
 		mType := core.NewMetricType(req.MType)
 
 		switch mType {
 		case core.Counter:
 			{
-				err := s.Set(core.NewMetricType(req.MType), req.ID, utils.CounterAsString(*req.Delta))
+				err := s.Set(mType, req.ID, utils.CounterAsString(*req.Delta))
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusBadRequest)
 					return
@@ -61,13 +60,13 @@ func MakeUpdateJSONHandler(s core.Storage) func(w http.ResponseWriter, r *http.R
 
 				*req.Delta = counter
 				if err = json.NewEncoder(w).Encode(req); err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
+					http.Error(w, err.Error(), http.StatusBadRequest)
 					return
 				}
 			}
 		case core.Gauge:
 			{
-				err := s.Set(core.NewMetricType(req.MType), req.ID, utils.GaugeAsString(*req.Value))
+				err := s.Set(mType, req.ID, utils.GaugeAsString(*req.Value))
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusBadRequest)
 					return
@@ -87,7 +86,7 @@ func MakeUpdateJSONHandler(s core.Storage) func(w http.ResponseWriter, r *http.R
 
 				*req.Value = counter
 				if err = json.NewEncoder(w).Encode(req); err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
+					http.Error(w, err.Error(), http.StatusBadRequest)
 					return
 				}
 			}
@@ -96,6 +95,7 @@ func MakeUpdateJSONHandler(s core.Storage) func(w http.ResponseWriter, r *http.R
 			return
 		}
 
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 	}
 }
