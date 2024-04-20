@@ -1,7 +1,9 @@
 package middlewares
 
 import (
+	"bytes"
 	"go.uber.org/zap"
+	"io"
 	"net/http"
 	"time"
 )
@@ -9,6 +11,7 @@ import (
 type (
 	responseData struct {
 		status int
+		body   interface{}
 		size   int
 	}
 
@@ -20,7 +23,10 @@ type (
 
 func (r *loggingResponseWriter) Write(b []byte) (int, error) {
 	size, err := r.ResponseWriter.Write(b)
+
 	r.responseData.size += size
+	r.responseData.body = string(b)
+
 	return size, err
 }
 
@@ -46,15 +52,25 @@ func MakeLogger(logger *zap.Logger) func(h http.Handler) http.Handler {
 				responseData:   responseData,
 			}
 
+			bodyBytes, err := io.ReadAll(r.Body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
 			h.ServeHTTP(&lw, r)
 
 			duration := time.Since(start)
 			sugar.Infoln(
 				"uri", r.RequestURI,
 				"method", r.Method,
-				"status", responseData.status,
+				"request", string(bodyBytes),
 				"duration", duration,
+				"status", responseData.status,
 				"size", responseData.size,
+				"response", responseData.body,
 			)
 		}
 
