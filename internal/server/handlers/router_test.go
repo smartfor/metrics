@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"github.com/smartfor/metrics/internal/logger"
 	"github.com/smartfor/metrics/internal/metrics"
 	"github.com/smartfor/metrics/internal/server/storage"
@@ -316,7 +317,7 @@ func TestRouter(t *testing.T) {
 					var actual metrics.Metrics
 					err := json.NewDecoder(bytes.NewReader([]byte(body))).Decode(&actual)
 					if err != nil {
-						log.Printf(err.Error())
+						fmt.Println(err)
 					}
 
 					assert.Equal(t, test.want.response, actual)
