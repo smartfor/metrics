@@ -25,7 +25,7 @@ func MakeUpdateHandler(s core.Storage) func(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-func MakeUpdateJsonHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {
+func MakeUpdateJSONHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req metrics.Metrics
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

@@ -24,7 +24,7 @@ func MakeGetValueHandler(s core.Storage) func(w http.ResponseWriter, r *http.Req
 	}
 }
 
-func MakeGetValueJsonHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {
+func MakeGetValueJSONHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req metrics.Metrics
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
