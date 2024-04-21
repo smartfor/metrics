@@ -6,12 +6,6 @@ import (
 	"strings"
 )
 
-var CompressTypes = []string{
-	"application/json",
-	"text/html",
-	"html/text", // FIXME - в автотестах скорее всего допущена ошибка. добавлено для прохождения тестов
-}
-
 func GzipMiddleware(h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		// по умолчанию устанавливаем оригинальный http.ResponseWriter как тот,
@@ -21,7 +15,7 @@ func GzipMiddleware(h http.Handler) http.Handler {
 		// проверяем, что клиент умеет получать от сервера сжатые данные в формате gzip
 		acceptEncoding := r.Header.Get("Accept-Encoding")
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")
-		if supportsGzip && isCompressType(r.Header.Get("Content-Type")) {
+		if supportsGzip && isCompressType(&r.Header) {
 			ow.Header().Set("Content-Encoding", "gzip")
 
 			// оборачиваем оригинальный http.ResponseWriter новым с поддержкой сжатия
@@ -54,11 +48,15 @@ func GzipMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-func isCompressType(contentType string) bool {
-	for _, compressType := range CompressTypes {
-		if strings.Contains(contentType, compressType) {
-			return true
-		}
+func isCompressType(header *http.Header) bool {
+	if header.Get("Content-Type") == "application/json" {
+		return true
+	}
+
+	acceptHeader := header.Get("Accept")
+	if strings.Contains(acceptHeader, "text/html") ||
+		strings.Contains(acceptHeader, "html/text") {
+		return true
 	}
 
 	return false
