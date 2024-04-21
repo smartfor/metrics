@@ -1,7 +1,7 @@
 package middlewares
 
 import (
-	"github.com/smartfor/metrics/internal/server/utils"
+	"github.com/smartfor/metrics/internal/utils"
 	"net/http"
 	"strings"
 )
@@ -17,8 +17,9 @@ func GzipMiddleware(h http.Handler) http.Handler {
 		// проверяем, что клиент умеет получать от сервера сжатые данные в формате gzip
 		acceptEncoding := r.Header.Get("Accept-Encoding")
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")
-
 		if supportsGzip && isCompressType(r.Header.Get("Content-Type")) {
+			ow.Header().Set("Content-Encoding", "gzip")
+
 			// оборачиваем оригинальный http.ResponseWriter новым с поддержкой сжатия
 			cw := utils.NewCompressWriter(w)
 			// меняем оригинальный http.ResponseWriter на новый

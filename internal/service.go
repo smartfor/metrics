@@ -8,7 +8,7 @@ import (
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/metrics"
 	"github.com/smartfor/metrics/internal/polling"
-	"github.com/smartfor/metrics/internal/server/utils"
+	"github.com/smartfor/metrics/internal/utils"
 	"math/rand"
 	"os"
 	"runtime"
@@ -70,6 +70,8 @@ func (s *Service) send() {
 	var pollCountReportError bool
 
 	var wg sync.WaitGroup
+	s.mu.Lock()
+
 	for _, v := range s.store {
 		wg.Add(1)
 
@@ -115,6 +117,7 @@ func (s *Service) send() {
 		}(v)
 	}
 
+	s.mu.Unlock()
 	wg.Wait()
 	//fmt.Println("end send..")
 
