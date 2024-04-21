@@ -65,7 +65,7 @@ func (s *Service) Run() {
 }
 
 func (s *Service) send() {
-	//fmt.Println("start send..")
+	fmt.Println("start send..")
 
 	var pollCountReportError bool
 
@@ -105,6 +105,7 @@ func (s *Service) send() {
 				SetHeader("Accept-Encoding", "gzip").
 				SetHeader("Content-Encoding", "gzip").
 				SetBody(compressed).
+				//SetBody(body).
 				Post(UpdateURL)
 
 			if err != nil {
@@ -119,7 +120,7 @@ func (s *Service) send() {
 
 	s.mu.Unlock()
 	wg.Wait()
-	//fmt.Println("end send..")
+	fmt.Println("end send..")
 
 	if !pollCountReportError {
 		s.resetPollCounter()
@@ -145,7 +146,7 @@ func (s *Service) updateGaugeMetrics(ms *runtime.MemStats) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	//fmt.Println("start update gauges...")
+	fmt.Println("start update gauges...")
 	s.store["Alloc"] = Metric{Type: core.Gauge, Key: "Alloc", Value: strconv.FormatUint(ms.Alloc, 10)}
 	s.store["BuckHashSys"] = Metric{Type: core.Gauge, Key: "BuckHashSys", Value: strconv.FormatUint(ms.BuckHashSys, 10)}
 	s.store["Frees"] = Metric{Type: core.Gauge, Key: "Frees", Value: strconv.FormatUint(ms.Frees, 10)}
@@ -174,7 +175,7 @@ func (s *Service) updateGaugeMetrics(ms *runtime.MemStats) {
 	s.store["Sys"] = Metric{Type: core.Gauge, Key: "Sys", Value: strconv.FormatUint(ms.Sys, 10)}
 	s.store["TotalAlloc"] = Metric{Type: core.Gauge, Key: "TotalAlloc", Value: strconv.FormatUint(ms.TotalAlloc, 10)}
 	s.store["RandomValue"] = Metric{Type: core.Gauge, Key: "RandomValue", Value: strconv.FormatFloat(rand.Float64(), 'f', -1, 64)}
-	//fmt.Println("end update gauges")
+	fmt.Println("end update gauges")
 
 }
 

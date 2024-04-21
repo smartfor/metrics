@@ -10,17 +10,14 @@ import (
 func Router(s core.Storage, logger *zap.Logger) chi.Router {
 	r := chi.NewRouter()
 
-	r.Use(middlewares.MakeLoggerMiddleware(logger))
 	r.Use(middlewares.GzipMiddleware)
+	r.Use(middlewares.MakeLoggerMiddleware(logger))
 
 	r.Get("/", MakeGetMetricsPageHandler(s))
+	r.Post("/update/", MakeUpdateJSONHandler(s))
+	r.Post("/value/", MakeGetValueJSONHandler(s))
 	r.Post("/update/{type}/{key}/{value}", MakeUpdateHandler(s))
 	r.Get("/value/{type}/{key}", MakeGetValueHandler(s))
-
-	r.Group(func(r chi.Router) {
-		r.Post("/update/", MakeUpdateJSONHandler(s))
-		r.Post("/value/", MakeGetValueJSONHandler(s))
-	})
 
 	return r
 }

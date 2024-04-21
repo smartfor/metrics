@@ -2,7 +2,6 @@ package utils
 
 import (
 	"bytes"
-	"compress/flate"
 	"compress/gzip"
 	"fmt"
 	"io"
@@ -72,12 +71,9 @@ func GzipCompress(data []byte) ([]byte, error) {
 	var b bytes.Buffer
 	// создаём переменную w — в неё будут записываться входящие данные,
 	// которые будут сжиматься и сохраняться в bytes.Buffer
-	w, err := flate.NewWriter(&b, flate.BestCompression)
-	if err != nil {
-		return nil, fmt.Errorf("failed init compress writer: %v", err)
-	}
+	w := gzip.NewWriter(&b)
 	// запись данных
-	_, err = w.Write(data)
+	_, err := w.Write(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed write data to compress temporary buffer: %v", err)
 	}
@@ -95,12 +91,15 @@ func GzipCompress(data []byte) ([]byte, error) {
 // Decompress распаковывает слайс байт.
 func GzipDecompress(data []byte) ([]byte, error) {
 	// переменная r будет читать входящие данные и распаковывать их
-	r := flate.NewReader(bytes.NewReader(data))
+	r, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("failed init decompress reader: %v", err)
+	}
 	defer r.Close()
 
 	var b bytes.Buffer
 	// в переменную b записываются распакованные данные
-	_, err := b.ReadFrom(r)
+	_, err = b.ReadFrom(r)
 	if err != nil {
 		return nil, fmt.Errorf("failed decompress data: %v", err)
 	}
