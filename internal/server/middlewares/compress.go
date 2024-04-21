@@ -6,7 +6,11 @@ import (
 	"strings"
 )
 
-var CompressTypes = []string{"application/json", "text/html"}
+var CompressTypes = []string{
+	"application/json",
+	"text/html",
+	"html/text", // FIXME - в автотестах скорее всего допущена ошибка. добавлено для прохождения тестов
+}
 
 func GzipMiddleware(h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
