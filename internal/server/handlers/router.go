@@ -13,7 +13,7 @@ func Router(s core.Storage, logger *zap.Logger) chi.Router {
 
 	r.Use(middleware.Logger)
 	r.Use(middlewares.GzipMiddleware)
-	r.Use(middlewares.MakeLoggerMiddleware(logger))
+	//r.Use(middlewares.MakeLoggerMiddleware(logger))
 
 	r.Get("/", MakeGetMetricsPageHandler(s))
 	r.Post("/update/", MakeUpdateJSONHandler(s))

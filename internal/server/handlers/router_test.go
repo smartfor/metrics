@@ -44,7 +44,15 @@ func TestRouter(t *testing.T) {
 		log.Fatalf("Error initialize logger ")
 	}
 
-	s := storage.NewMemStorage()
+	fs, err := storage.NewFileStorage("/tmp/metrics.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := storage.NewMemStorage(fs, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	ts := httptest.NewServer(Router(s, logger.Log))
 	defer ts.Close()
 
@@ -339,12 +347,4 @@ func TestRouter(t *testing.T) {
 			}
 		})
 	}
-}
-
-func valueRef(float float64) *float64 {
-	return &float
-}
-
-func deltaRef(int int64) *int64 {
-	return &int
 }

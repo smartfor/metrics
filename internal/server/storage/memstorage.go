@@ -7,25 +7,32 @@ import (
 )
 
 type MemStorage struct {
-	store map[core.MetricType]map[string]interface{}
-	mu    *sync.Mutex
+	core.BaseMetricStorage
+	backup      core.Storage
+	synchronize bool
+	mu          *sync.Mutex
 }
 
-func NewMemStorage() *MemStorage {
+func NewMemStorage(backup core.Storage, restore bool, synchronize bool) (*MemStorage, error) {
 	s := &MemStorage{
-		store: make(map[core.MetricType]map[string]interface{}),
-		mu:    &sync.Mutex{},
+		BaseMetricStorage: core.NewBaseMetricStorage(),
+		backup:            backup,
+		synchronize:       synchronize,
+		mu:                &sync.Mutex{},
 	}
 
-	s.store[core.Gauge] = make(map[string]interface{})
-	s.store[core.Counter] = make(map[string]interface{})
+	if restore {
+		if err := core.Sync(backup, s); err != nil {
+			return nil, err
+		}
+	}
 
-	return s
+	return s, nil
 }
 
 func (s *MemStorage) Set(metric core.MetricType, key string, value string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.Lock()
+	defer s.Unlock()
 
 	switch metric {
 	case core.Gauge:
@@ -35,7 +42,7 @@ func (s *MemStorage) Set(metric core.MetricType, key string, value string) error
 				return core.ErrBadMetricValue
 			}
 
-			s.store[metric][key] = val
+			s.SetGauge(key, val)
 		}
 
 	case core.Counter:
@@ -45,11 +52,7 @@ func (s *MemStorage) Set(metric core.MetricType, key string, value string) error
 				return core.ErrBadMetricValue
 			}
 
-			if _, ok := s.store[metric][key]; !ok {
-				s.store[metric][key] = int64(0)
-			}
-
-			s.store[metric][key] = s.store[metric][key].(int64) + val
+			s.SetCounter(key, val)
 		}
 
 	case core.Unknown:
@@ -58,42 +61,71 @@ func (s *MemStorage) Set(metric core.MetricType, key string, value string) error
 		}
 	}
 
+	if s.synchronize {
+		// Получаем значение счетчика, потому что оно увеличилось и нужно синхронизировать
+		if metric == core.Counter {
+			v, _ := s.GetCounter(key)
+			value = utils.CounterAsString(v)
+		}
+		if err := s.backup.Set(metric, key, value); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 func (s *MemStorage) Get(metric core.MetricType, key string) (string, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.Lock()
+	defer s.Unlock()
 
-	if metric == core.Unknown {
-		return "", core.ErrUnknownMetricType
-	}
+	switch metric {
+	case core.Gauge:
+		{
+			v, ok := s.GetGauge(key)
+			if !ok {
+				return "", core.ErrNotFound
+			}
 
-	value, ok := s.store[metric][key]
-	if !ok {
-		return "", core.ErrNotFound
-	}
-
-	if metric == core.Gauge {
-		return utils.GaugeAsString(value), nil
-	} else {
-		return utils.CounterAsString(value), nil
+			return utils.GaugeAsString(v), nil
+		}
+	case core.Counter:
+		{
+			v, ok := s.GetCounter(key)
+			if !ok {
+				return "", core.ErrNotFound
+			}
+			return utils.CounterAsString(v), nil
+		}
+	default:
+		{
+			return "", core.ErrUnknownMetricType
+		}
 	}
 }
 
-func (s *MemStorage) GetAll() (map[string]string, error) {
-	var out = make(map[string]string)
+func (s *MemStorage) GetAll() (core.BaseMetricStorage, error) {
+	s.Lock()
+	defer s.Unlock()
 
+	return core.CloneBaseMetricStorage(&s.BaseMetricStorage), nil
+}
+
+func (s *MemStorage) Close() error {
+	s.Lock()
+	defer s.Unlock()
+
+	if err := s.backup.Close(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *MemStorage) Lock() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+}
 
-	for k, v := range s.store[core.Gauge] {
-		out[k] = utils.GaugeAsString(v)
-	}
-
-	for k, v := range s.store[core.Counter] {
-		out[k] = utils.CounterAsString(v)
-	}
-
-	return out, nil
+func (s *MemStorage) Unlock() {
+	s.mu.Unlock()
 }

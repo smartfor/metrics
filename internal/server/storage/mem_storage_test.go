@@ -54,7 +54,15 @@ func TestMemStorage_Get(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewMemStorage()
+			fs, err := NewFileStorage("/tmp/metric.json")
+			if err != nil {
+				t.Fatal(err)
+			}
+			s, err := NewMemStorage(fs, false, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+
 			s.Set(core.Gauge, "k1", "1")
 			s.Set(core.Counter, "c1", "42")
 
@@ -122,10 +130,17 @@ func TestMemStorage_Set(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewMemStorage()
+			fs, err := NewFileStorage("/tmp/metric.json")
+			if err != nil {
+				t.Fatal(err)
+			}
+			s, err := NewMemStorage(fs, false, false)
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			mType := core.NewMetricType(string(tt.metricType))
-			err := s.Set(mType, tt.key, tt.value)
+			err = s.Set(mType, tt.key, tt.value)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -137,7 +152,15 @@ func TestMemStorage_Set(t *testing.T) {
 	}
 
 	t.Run("Counter - incremented few times", func(t *testing.T) {
-		s := NewMemStorage()
+		fs, err := NewFileStorage("/tmp/metric.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		s, err := NewMemStorage(fs, false, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		k := "someCounter"
 		s.Set(core.Counter, k, "12")
 		s.Set(core.Counter, k, "2")

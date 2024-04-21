@@ -3,9 +3,10 @@ package handlers
 import (
 	"fmt"
 	"github.com/smartfor/metrics/internal/core"
+	"github.com/smartfor/metrics/internal/server/utils"
 	"log"
 	"net/http"
-	"sort"
+	"slices"
 )
 
 func MakeGetMetricsPageHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {
@@ -15,18 +16,38 @@ func MakeGetMetricsPageHandler(s core.Storage) func(w http.ResponseWriter, r *ht
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 
-		keys := make([]string, 0, len(m))
-		for k := range m {
-			keys = append(keys, k)
+		var out = `
+<h1>Metrics</h1>
+<h2>Gauges</h2>
+<ul>
+`
+		gauges := m.Gauges()
+		gKeys := make([]string, 0, len(gauges))
+		for k, _ := range gauges {
+			gKeys = append(gKeys, k)
+		}
+		slices.Sort(gKeys)
+		for _, k := range gKeys {
+			out += fmt.Sprintf("<li>%s : %s</li>", k, utils.GaugeAsString(gauges[k]))
 		}
 
-		sort.Strings(keys)
-
-		var out = "<ul>"
-		for _, k := range keys {
-			out += fmt.Sprintf("<li>%s : %s</li>", k, m[k])
+		out += `
+</ul>
+<h2>Counters</h2>
+<ul>
+`
+		counters := m.Counters()
+		cKeys := make([]string, 0, len(counters))
+		for k, _ := range counters {
+			cKeys = append(cKeys, k)
 		}
-		out += "</ul>"
+		slices.Sort(cKeys)
+		for _, k := range cKeys {
+			out += fmt.Sprintf("<li>%s : %s</li>", k, utils.CounterAsString(counters[k]))
+		}
+
+		out += `
+<ul>`
 
 		w.Header().Set("Content-Type", "text/html")
 		if _, err := w.Write([]byte(out)); err != nil {
