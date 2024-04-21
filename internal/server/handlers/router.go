@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/server/middlewares"
 	"go.uber.org/zap"
@@ -11,9 +10,9 @@ import (
 func Router(s core.Storage, logger *zap.Logger) chi.Router {
 	r := chi.NewRouter()
 
-	r.Use(middleware.Logger)
+	//r.Use(middleware.Logger)
 	r.Use(middlewares.GzipMiddleware)
-	//r.Use(middlewares.MakeLoggerMiddleware(logger))
+	r.Use(middlewares.MakeLoggerMiddleware(logger))
 
 	r.Get("/", MakeGetMetricsPageHandler(s))
 	r.Post("/update/", MakeUpdateJSONHandler(s))
