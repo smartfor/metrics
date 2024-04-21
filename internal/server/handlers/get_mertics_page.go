@@ -19,6 +19,7 @@ func MakeGetMetricsPageHandler(s core.Storage) func(w http.ResponseWriter, r *ht
 			out += fmt.Sprintf("%s : %s\n", k, v)
 		}
 
+		w.Header().Set("Content-Type", "text/html")
 		if _, err := w.Write([]byte(out)); err != nil {
 			log.Printf("Error writing response: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
