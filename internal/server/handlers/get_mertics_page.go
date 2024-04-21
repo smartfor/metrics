@@ -19,8 +19,7 @@ func MakeGetMetricsPageHandler(s core.Storage) func(w http.ResponseWriter, r *ht
 			out += fmt.Sprintf("%s : %s\n", k, v)
 		}
 
-		// FIXME - в автотестах скорее всего допущена ошибка. добавлено для прохождения тестов
-		w.Header().Set("Content-Type", "html/text")
+		w.Header().Set("Content-Type", "text/html")
 		if _, err := w.Write([]byte(out)); err != nil {
 			log.Printf("Error writing response: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
