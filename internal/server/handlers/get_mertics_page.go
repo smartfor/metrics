@@ -23,7 +23,7 @@ func MakeGetMetricsPageHandler(s core.Storage) func(w http.ResponseWriter, r *ht
 `
 		gauges := m.Gauges()
 		gKeys := make([]string, 0, len(gauges))
-		for k, _ := range gauges {
+		for k := range gauges {
 			gKeys = append(gKeys, k)
 		}
 		slices.Sort(gKeys)
@@ -38,7 +38,7 @@ func MakeGetMetricsPageHandler(s core.Storage) func(w http.ResponseWriter, r *ht
 `
 		counters := m.Counters()
 		cKeys := make([]string, 0, len(counters))
-		for k, _ := range counters {
+		for k := range counters {
 			cKeys = append(cKeys, k)
 		}
 		slices.Sort(cKeys)

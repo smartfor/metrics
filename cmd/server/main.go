@@ -56,13 +56,10 @@ func main() {
 			ticker := time.NewTicker(interval)
 			defer ticker.Stop()
 
-			for {
-				select {
-				case <-ticker.C:
-					if err := core.Sync(storage, backup); err != nil {
-						fmt.Println(err)
-						logger.Log.Error("Error sync metrics: ", zap.Error(err))
-					}
+			for range ticker.C {
+				if err := core.Sync(storage, backup); err != nil {
+					fmt.Println(err)
+					logger.Log.Error("Error sync metrics: ", zap.Error(err))
 				}
 			}
 		}(memStorage, backupStorage, cfg.StoreInterval)
