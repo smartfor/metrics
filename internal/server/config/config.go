@@ -19,6 +19,7 @@ type Config struct {
 	StoreInterval   time.Duration
 	FileStoragePath string
 	Restore         bool
+	DatabaseDSN     string
 }
 
 func GetConfig() (*Config, error) {
@@ -28,6 +29,7 @@ func GetConfig() (*Config, error) {
 		fileStoragePath = flag.String("f", "/tmp/metrics-db.json", "file storage path")
 		storeInterval   = flag.Int("i", 300, "metrics store interval")
 		restore         = flag.Bool("r", true, "restore metrics when server starts")
+		dbDsn           = flag.String("d", "", "database DSN")
 	)
 	flag.Parse()
 
@@ -44,6 +46,7 @@ func GetConfig() (*Config, error) {
 	utils.TryTakeStringFromEnv("FILE_STORAGE_PATH", fileStoragePath)
 	utils.TryTakeIntFromEnv("STORE_INTERVAL", storeInterval)
 	utils.TryGetBoolFromEnv("RESTORE", restore)
+	utils.TryTakeStringFromEnv("DATABASE_DSN", dbDsn)
 
 	return &Config{
 		Addr:            *addr,
@@ -51,5 +54,6 @@ func GetConfig() (*Config, error) {
 		StoreInterval:   time.Second * time.Duration(*storeInterval),
 		FileStoragePath: *fileStoragePath,
 		Restore:         *restore,
+		DatabaseDSN:     *dbDsn,
 	}, nil
 }

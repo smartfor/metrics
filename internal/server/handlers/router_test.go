@@ -53,7 +53,7 @@ func TestRouter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ts := httptest.NewServer(Router(s, zlog))
+	ts := httptest.NewServer(Router(s, nil, zlog))
 	defer ts.Close()
 
 	tests := []struct {

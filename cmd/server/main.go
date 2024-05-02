@@ -41,7 +41,15 @@ func main() {
 		zlog.Fatal("Error creating metric storage: ", zap.Error(err))
 	}
 
-	router := handlers.Router(memStorage, zlog)
+	var postgresStorage *storage.PostgresStorage
+	if cfg.DatabaseDSN != "" {
+		postgresStorage, err = storage.NewPostgresStorage(context.TODO(), cfg.DatabaseDSN)
+		if err != nil {
+			zlog.Fatal("Error creatingPostgresStorage: ", zap.Error(err))
+		}
+	}
+
+	router := handlers.Router(memStorage, postgresStorage, zlog)
 	server := &http.Server{
 		Addr:    cfg.Addr,
 		Handler: router,

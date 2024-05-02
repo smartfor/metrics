@@ -7,6 +7,12 @@ import (
 	"sync"
 )
 
+var (
+	ErrUnknownMetricType = errors.New("unknown metric type")
+	ErrBadMetricValue    = errors.New("bad metric value")
+	ErrNotFound          = errors.New("not found")
+)
+
 type Storage interface {
 	io.Closer
 	sync.Locker
@@ -94,9 +100,3 @@ func Sync(source Storage, target Storage) error {
 
 	return nil
 }
-
-var (
-	ErrUnknownMetricType = errors.New("unknown metric type")
-	ErrBadMetricValue    = errors.New("bad metric value")
-	ErrNotFound          = errors.New("not found")
-)
