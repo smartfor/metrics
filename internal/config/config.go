@@ -3,8 +3,8 @@ package config
 import (
 	"flag"
 	"fmt"
+	"github.com/smartfor/metrics/internal/utils"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -35,9 +35,9 @@ func GetConfig() Config {
 		os.Exit(1)
 	}
 
-	tryTakeIntFromEnv("POLL_INTERVAL", pollInterval)
-	tryTakeIntFromEnv("REPORT_INTERVAL", reportInterval)
-	tryTakeIntFromEnv("RESPONSE_TIMEOUT", responseTimeout)
+	utils.TryTakeIntFromEnv("POLL_INTERVAL", pollInterval)
+	utils.TryTakeIntFromEnv("REPORT_INTERVAL", reportInterval)
+	utils.TryTakeIntFromEnv("RESPONSE_TIMEOUT", responseTimeout)
 
 	if a := os.Getenv("ADDRESS"); a != "" {
 		*hostEndpoint = a
@@ -52,13 +52,5 @@ func GetConfig() Config {
 		ReportInterval:  time.Duration(*reportInterval) * time.Second,
 		ResponseTimeout: time.Duration(*responseTimeout) * time.Second,
 		HostEndpoint:    *hostEndpoint,
-	}
-}
-
-func tryTakeIntFromEnv(name string, target *int) {
-	if fromEnv := os.Getenv(name); fromEnv != "" {
-		if v, err := strconv.Atoi(fromEnv); err == nil {
-			*target = v
-		}
 	}
 }

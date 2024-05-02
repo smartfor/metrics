@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/smartfor/metrics/internal/core"
+	"github.com/smartfor/metrics/internal/logger"
 	"github.com/smartfor/metrics/internal/server/config"
 	"github.com/smartfor/metrics/internal/server/handlers"
 	"github.com/smartfor/metrics/internal/server/storage"
+	"go.uber.org/zap"
 	"log"
 	"net/http"
 	"os"
@@ -18,18 +21,49 @@ import (
 func main() {
 	cfg, err := config.GetConfig()
 	if err != nil {
-		fmt.Println("Error loading configuration:", err)
-		os.Exit(1)
+		log.Fatalf("Error loading configuration: %s", err)
 	}
 
-	log.Println("Server config:", cfg)
+	zlog, err := logger.MakeLogger(cfg.LogLevel)
+	if err != nil {
+		log.Fatalf("Error initialize logger: %s", err)
+	}
 
-	metricStorage := storage.NewMemStorage()
-	router := handlers.Router(metricStorage)
+	zlog.Sugar().Infof("Server config: %+v", cfg)
 
+	backupStorage, err := storage.NewFileStorage(cfg.FileStoragePath)
+	if err != nil {
+		zlog.Fatal("Error creating backup storage: ", zap.Error(err))
+	}
+
+	memStorage, err := storage.NewMemStorage(backupStorage, cfg.Restore, cfg.StoreInterval == 0)
+	if err != nil {
+		zlog.Fatal("Error creating metric storage: ", zap.Error(err))
+	}
+
+	router := handlers.Router(memStorage, zlog)
 	server := &http.Server{
 		Addr:    cfg.Addr,
 		Handler: router,
+	}
+
+	if cfg.StoreInterval > 0 {
+		go func(
+			storage core.Storage,
+			backup core.Storage,
+			interval time.Duration,
+		) {
+			time.Sleep(interval)
+			ticker := time.NewTicker(interval)
+			defer ticker.Stop()
+
+			for range ticker.C {
+				if err := core.Sync(storage, backup); err != nil {
+					fmt.Println(err)
+					zlog.Error("Error sync metrics: ", zap.Error(err))
+				}
+			}
+		}(memStorage, backupStorage, cfg.StoreInterval)
 	}
 
 	done := make(chan os.Signal, 1)
@@ -37,19 +71,25 @@ func main() {
 
 	go func() {
 		<-done
-		log.Println("Shutting down server...")
+		zlog.Info("Shutting down server...")
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
 		if err := server.Shutdown(ctx); err != nil {
-			log.Fatalf("Server Shutdown Failed:%+v", err)
+			zlog.Fatal("Server Shutdown Failed: ", zap.Error(err))
 		}
-		log.Println("Server gracefully stopped.")
+
+		zlog.Info("Server gracefully stopped.")
 	}()
 
 	log.Printf("Server is ready to handle requests at %s", cfg.Addr)
 	if err := server.ListenAndServe(); err != nil && errors.Is(err, http.ErrServerClosed) {
-		log.Fatalf("could not listen on %s: %v", cfg.Addr, err)
+		if err := core.Sync(memStorage, backupStorage); err != nil {
+			zlog.Fatal("Memstorage Backup Failed: ", zap.Error(err))
+		}
+		if err := memStorage.Close(); err != nil {
+			zlog.Fatal("Memstorage Close Failed: ", zap.Error(err))
+		}
 	}
 }

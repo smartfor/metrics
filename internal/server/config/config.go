@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/smartfor/metrics/internal/utils"
-	"os"
+	"time"
 )
 
 var (
@@ -14,11 +14,21 @@ var (
 )
 
 type Config struct {
-	Addr string
+	Addr            string
+	LogLevel        string
+	StoreInterval   time.Duration
+	FileStoragePath string
+	Restore         bool
 }
 
 func GetConfig() (*Config, error) {
-	addr := flag.String("a", ":8080", "address and port to run server")
+	var (
+		addr            = flag.String("a", ":8080", "address and port to run server")
+		logLevel        = flag.String("l", "info", "log level")
+		fileStoragePath = flag.String("f", "/tmp/metrics-db.json", "file storage path")
+		storeInterval   = flag.Int("i", 300, "metrics store interval")
+		restore         = flag.Bool("r", true, "restore metrics when server starts")
+	)
 	flag.Parse()
 
 	if err := utils.ValidateAddress(*addr); err != nil {
@@ -29,9 +39,17 @@ func GetConfig() (*Config, error) {
 		return nil, ErrUnknownArguments
 	}
 
-	if a := os.Getenv("ADDRESS"); a != "" {
-		*addr = a
-	}
+	utils.TryTakeStringFromEnv("ADDRESS", addr)
+	utils.TryTakeStringFromEnv("LOG_LEVEL", logLevel)
+	utils.TryTakeStringFromEnv("FILE_STORAGE_PATH", fileStoragePath)
+	utils.TryTakeIntFromEnv("STORE_INTERVAL", storeInterval)
+	utils.TryGetBoolFromEnv("RESTORE", restore)
 
-	return &Config{Addr: *addr}, nil
+	return &Config{
+		Addr:            *addr,
+		LogLevel:        *logLevel,
+		StoreInterval:   time.Second * time.Duration(*storeInterval),
+		FileStoragePath: *fileStoragePath,
+		Restore:         *restore,
+	}, nil
 }

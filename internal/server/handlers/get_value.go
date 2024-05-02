@@ -1,15 +1,17 @@
 package handlers
 
 import (
+	"encoding/json"
 	"github.com/go-chi/chi/v5"
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/metrics"
+	"github.com/smartfor/metrics/internal/server/utils"
 	"net/http"
 )
 
-func MakeGetValueHandler(s core.Storage) func(http.ResponseWriter, *http.Request) {
+func MakeGetValueHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		metric := metrics.NewMetricType(chi.URLParam(r, "type"))
+		metric := core.NewMetricType(chi.URLParam(r, "type"))
 		key := chi.URLParam(r, "key")
 
 		v, err := s.Get(metric, key)
@@ -19,5 +21,56 @@ func MakeGetValueHandler(s core.Storage) func(http.ResponseWriter, *http.Request
 		}
 
 		w.Write([]byte(v))
+	}
+}
+
+func MakeGetValueJSONHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		var req metrics.Metrics
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			utils.WriteError(w, err, http.StatusBadRequest)
+			return
+		}
+
+		mType := core.NewMetricType(req.MType)
+
+		value, err := s.Get(mType, req.ID)
+		if err != nil {
+			utils.WriteError(w, err, http.StatusNotFound)
+			return
+		}
+
+		switch mType {
+		case core.Counter:
+			{
+				v, err := utils.CounterFromString(value)
+				if err != nil {
+					utils.WriteError(w, err, http.StatusInternalServerError)
+					return
+				}
+				req.Delta = &v
+			}
+		case core.Gauge:
+			{
+				v, err := utils.GaugeFromString(value)
+				if err != nil {
+					utils.WriteError(w, err, http.StatusInternalServerError)
+					return
+				}
+				req.Value = &v
+			}
+		default:
+			utils.WriteError(w, core.ErrUnknownMetricType, http.StatusBadRequest)
+			return
+		}
+
+		if err = json.NewEncoder(w).Encode(req); err != nil {
+			utils.WriteError(w, err, http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
 	}
 }

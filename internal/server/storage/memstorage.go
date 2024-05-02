@@ -1,125 +1,131 @@
 package storage
 
 import (
-	"fmt"
 	"github.com/smartfor/metrics/internal/core"
-	"github.com/smartfor/metrics/internal/metrics"
 	"github.com/smartfor/metrics/internal/server/utils"
-	"strconv"
 	"sync"
 )
 
 type MemStorage struct {
-	store map[metrics.MetricType]map[string]interface{}
-	mu    *sync.Mutex
+	core.BaseMetricStorage
+	backup      core.Storage
+	synchronize bool
+	mu          *sync.Mutex
 }
 
-func NewMemStorage() *MemStorage {
+func NewMemStorage(backup core.Storage, restore bool, synchronize bool) (*MemStorage, error) {
 	s := &MemStorage{
-		store: make(map[metrics.MetricType]map[string]interface{}),
-		mu:    &sync.Mutex{},
+		BaseMetricStorage: core.NewBaseMetricStorage(),
+		backup:            backup,
+		synchronize:       synchronize,
+		mu:                &sync.Mutex{},
 	}
 
-	s.store[metrics.Gauge] = make(map[string]interface{})
-	s.store[metrics.Counter] = make(map[string]interface{})
+	if restore {
+		if err := core.Sync(backup, s); err != nil {
+			return nil, err
+		}
+	}
 
-	return s
+	return s, nil
 }
 
-func (s *MemStorage) Set(metric metrics.MetricType, key string, value string) *core.StorageError {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (s *MemStorage) Set(metric core.MetricType, key string, value string) error {
+	s.Lock()
+	defer s.Unlock()
 
 	switch metric {
-	case metrics.Gauge:
+	case core.Gauge:
 		{
-			val, err := strconv.ParseFloat(value, 64)
+			val, err := utils.GaugeFromString(value)
 			if err != nil {
-				return &core.StorageError{
-					Msg:   err.Error(),
-					Key:   key,
-					Value: value,
-					Type:  core.BadMetricValue,
-				}
+				return core.ErrBadMetricValue
 			}
 
-			s.store[metric][key] = val
+			s.SetGauge(key, val)
 		}
 
-	case metrics.Counter:
+	case core.Counter:
 		{
-			val, err := strconv.ParseInt(value, 10, 64)
+			val, err := utils.CounterFromString(value)
 			if err != nil {
-				return &core.StorageError{
-					Msg:   err.Error(),
-					Key:   key,
-					Value: value,
-					Type:  core.BadMetricValue,
-				}
+				return core.ErrBadMetricValue
 			}
 
-			if _, ok := s.store[metric][key]; !ok {
-				s.store[metric][key] = int64(0)
-			}
-
-			s.store[metric][key] = s.store[metric][key].(int64) + val
+			s.SetCounter(key, val)
 		}
 
-	case metrics.Unknown:
+	case core.Unknown:
 		{
-			return &core.StorageError{
-				Msg:   "unknown metric type",
-				Key:   key,
-				Value: value,
-				Type:  core.UnknownMetricType,
-			}
+			return core.ErrUnknownMetricType
+		}
+	}
+
+	if s.synchronize {
+		// Получаем значение счетчика, потому что оно увеличилось и нужно синхронизировать
+		if metric == core.Counter {
+			v, _ := s.GetCounter(key)
+			value = utils.CounterAsString(v)
+		}
+		if err := s.backup.Set(metric, key, value); err != nil {
+			return err
 		}
 	}
 
 	return nil
 }
 
-func (s *MemStorage) Get(metric metrics.MetricType, key string) (string, *core.StorageError) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (s *MemStorage) Get(metric core.MetricType, key string) (string, error) {
+	s.Lock()
+	defer s.Unlock()
 
-	if metric == metrics.Unknown {
-		return "", &core.StorageError{
-			Msg:  "unknown Metric Type",
-			Key:  key,
-			Type: core.UnknownMetricType,
+	switch metric {
+	case core.Gauge:
+		{
+			v, ok := s.GetGauge(key)
+			if !ok {
+				return "", core.ErrNotFound
+			}
+
+			return utils.GaugeAsString(v), nil
 		}
-	}
-
-	value, ok := s.store[metric][key]
-	if !ok {
-		return "", &core.StorageError{
-			Msg:  fmt.Sprintf("not found by type: %s key: %s", metric, key),
-			Key:  key,
-			Type: core.NotFound,
+	case core.Counter:
+		{
+			v, ok := s.GetCounter(key)
+			if !ok {
+				return "", core.ErrNotFound
+			}
+			return utils.CounterAsString(v), nil
 		}
-	}
-
-	if metric == metrics.Gauge {
-		return utils.GaugeAsString(value), nil
-	} else {
-		return utils.CounterAsString(value), nil
+	default:
+		{
+			return "", core.ErrUnknownMetricType
+		}
 	}
 }
 
-func (s *MemStorage) GetAll() (map[string]string, *core.StorageError) {
-	var out = make(map[string]string)
+func (s *MemStorage) GetAll() (core.BaseMetricStorage, error) {
+	s.Lock()
+	defer s.Unlock()
 
+	return core.CloneBaseMetricStorage(&s.BaseMetricStorage), nil
+}
+
+func (s *MemStorage) Close() error {
+	s.Lock()
+	defer s.Unlock()
+
+	if err := s.backup.Close(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *MemStorage) Lock() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+}
 
-	for k, v := range s.store[metrics.Gauge] {
-		out[k] = utils.GaugeAsString(v)
-	}
-
-	for k, v := range s.store[metrics.Counter] {
-		out[k] = utils.CounterAsString(v)
-	}
-
-	return out, nil
+func (s *MemStorage) Unlock() {
+	s.mu.Unlock()
 }

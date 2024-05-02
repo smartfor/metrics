@@ -1,9 +1,11 @@
 package polling
 
-import "github.com/smartfor/metrics/internal/metrics"
+import (
+	"github.com/smartfor/metrics/internal/core"
+)
 
-type Metric struct {
-	Type  metrics.MetricType
+type MetricsModel struct {
+	Type  core.MetricType
 	Key   string
 	Value string
 }
