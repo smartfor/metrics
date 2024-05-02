@@ -2,14 +2,13 @@ package logger
 
 import "go.uber.org/zap"
 
-var Log *zap.Logger = zap.NewNop()
-
-// Initialize инициализирует синглтон логера с необходимым уровнем логирования.
-func Initialize(level string) error {
+// MakeLogger инициализирует синглтон логера с необходимым уровнем логирования.
+func MakeLogger(level string) (*zap.Logger, error) {
+	var Log = zap.NewNop()
 
 	lvl, err := zap.ParseAtomicLevel(level)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	cfg := zap.NewProductionConfig()
@@ -17,9 +16,9 @@ func Initialize(level string) error {
 
 	zl, err := cfg.Build()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	Log = zl
-	return nil
+	return Log, nil
 }

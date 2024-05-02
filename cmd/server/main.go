@@ -24,23 +24,24 @@ func main() {
 		log.Fatalf("Error loading configuration: %s", err)
 	}
 
-	if err := logger.Initialize(cfg.LogLevel); err != nil {
+	zlog, err := logger.MakeLogger(cfg.LogLevel)
+	if err != nil {
 		log.Fatalf("Error initialize logger: %s", err)
 	}
 
-	logger.Log.Sugar().Infof("Server config: %+v", cfg)
+	zlog.Sugar().Infof("Server config: %+v", cfg)
 
 	backupStorage, err := storage.NewFileStorage(cfg.FileStoragePath)
 	if err != nil {
-		logger.Log.Fatal("Error creating backup storage: ", zap.Error(err))
+		zlog.Fatal("Error creating backup storage: ", zap.Error(err))
 	}
 
 	memStorage, err := storage.NewMemStorage(backupStorage, cfg.Restore, cfg.StoreInterval == 0)
 	if err != nil {
-		logger.Log.Fatal("Error creating metric storage: ", zap.Error(err))
+		zlog.Fatal("Error creating metric storage: ", zap.Error(err))
 	}
 
-	router := handlers.Router(memStorage, logger.Log)
+	router := handlers.Router(memStorage, zlog)
 	server := &http.Server{
 		Addr:    cfg.Addr,
 		Handler: router,
@@ -59,7 +60,7 @@ func main() {
 			for range ticker.C {
 				if err := core.Sync(storage, backup); err != nil {
 					fmt.Println(err)
-					logger.Log.Error("Error sync metrics: ", zap.Error(err))
+					zlog.Error("Error sync metrics: ", zap.Error(err))
 				}
 			}
 		}(memStorage, backupStorage, cfg.StoreInterval)
@@ -70,25 +71,25 @@ func main() {
 
 	go func() {
 		<-done
-		logger.Log.Info("Shutting down server...")
+		zlog.Info("Shutting down server...")
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
 		if err := server.Shutdown(ctx); err != nil {
-			logger.Log.Fatal("Server Shutdown Failed: ", zap.Error(err))
+			zlog.Fatal("Server Shutdown Failed: ", zap.Error(err))
 		}
 
-		logger.Log.Info("Server gracefully stopped.")
+		zlog.Info("Server gracefully stopped.")
 	}()
 
 	log.Printf("Server is ready to handle requests at %s", cfg.Addr)
 	if err := server.ListenAndServe(); err != nil && errors.Is(err, http.ErrServerClosed) {
 		if err := core.Sync(memStorage, backupStorage); err != nil {
-			logger.Log.Fatal("Memstorage Backup Failed: ", zap.Error(err))
+			zlog.Fatal("Memstorage Backup Failed: ", zap.Error(err))
 		}
 		if err := memStorage.Close(); err != nil {
-			logger.Log.Fatal("Memstorage Close Failed: ", zap.Error(err))
+			zlog.Fatal("Memstorage Close Failed: ", zap.Error(err))
 		}
 	}
 }

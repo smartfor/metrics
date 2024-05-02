@@ -39,7 +39,7 @@ func TestRouter(t *testing.T) {
 		contentType string
 	}
 
-	err := logger.Initialize("Info")
+	err := logger.MakeLogger("Info")
 	if err != nil {
 		log.Fatalf("Error initialize logger ")
 	}
