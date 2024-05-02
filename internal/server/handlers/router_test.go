@@ -39,7 +39,7 @@ func TestRouter(t *testing.T) {
 		contentType string
 	}
 
-	err := logger.MakeLogger("Info")
+	zlog, err := logger.MakeLogger("Info")
 	if err != nil {
 		log.Fatalf("Error initialize logger ")
 	}
@@ -53,7 +53,7 @@ func TestRouter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ts := httptest.NewServer(Router(s, logger.Log))
+	ts := httptest.NewServer(Router(s, zlog))
 	defer ts.Close()
 
 	tests := []struct {
