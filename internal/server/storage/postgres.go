@@ -170,7 +170,7 @@ func (s *PostgresStorage) getGauge(key string) (float64, error) {
 	var value float64
 	err := s.pool.QueryRow(
 		context.TODO(),
-		`SELECT FROM gauges WHERE key = $1 LIMIT 1`,
+		`SELECT (value) FROM gauges WHERE key = $1 LIMIT 1`,
 		key,
 	).Scan(&value)
 
@@ -185,7 +185,7 @@ func (s *PostgresStorage) getCounter(key string) (int64, error) {
 	var delta int64
 	err := s.pool.QueryRow(
 		context.TODO(),
-		`SELECT FROM counters WHERE key = $1 LIMIT 1`,
+		`SELECT (value) FROM counters WHERE key = $1 LIMIT 1`,
 		key,
 	).Scan(&delta)
 
@@ -216,7 +216,7 @@ func (s *PostgresStorage) getAllGauges() (map[string]float64, error) {
 }
 
 func (s *PostgresStorage) getAllCounters() (map[string]int64, error) {
-	query, err := s.pool.Query(context.TODO(), `SELECT FROM counters`)
+	query, err := s.pool.Query(context.TODO(), `SELECT (key, value) FROM counters`)
 	if err != nil {
 		return nil, err
 	}

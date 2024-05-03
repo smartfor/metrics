@@ -74,19 +74,6 @@ func MakeUpdateJSONHandler(s core.Storage) func(w http.ResponseWriter, r *http.R
 					return
 				}
 
-				newValue, err := s.Get(mType, req.ID)
-				if err != nil {
-					utils.WriteError(w, err, http.StatusBadRequest)
-					return
-				}
-
-				counter, err := utils.GaugeFromString(newValue)
-				if err != nil {
-					utils.WriteError(w, err, http.StatusBadRequest)
-					return
-				}
-
-				*req.Value = counter
 				if err = json.NewEncoder(w).Encode(req); err != nil {
 					utils.WriteError(w, err, http.StatusBadRequest)
 					return
