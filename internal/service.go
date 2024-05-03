@@ -67,9 +67,6 @@ func (s *Service) Run() {
 
 func (s *Service) send() {
 	s.mu.Lock()
-	defer func() {
-
-	}()
 
 	var (
 		batch      []metrics.Metrics

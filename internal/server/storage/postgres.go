@@ -73,6 +73,10 @@ func (s *PostgresStorage) Set(metric core.MetricType, key string, value string) 
 			if err != nil {
 				return err
 			}
+			err = tx.Commit(ctx)
+			if err != nil {
+				return err
+			}
 		}
 
 	case core.Counter:
@@ -83,6 +87,10 @@ func (s *PostgresStorage) Set(metric core.MetricType, key string, value string) 
 			}
 
 			_, err = s.upsertCounter(tx, key, delta)
+			if err != nil {
+				return err
+			}
+			err = tx.Commit(ctx)
 			if err != nil {
 				return err
 			}
