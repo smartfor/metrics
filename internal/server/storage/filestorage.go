@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/smartfor/metrics/internal/core"
@@ -180,4 +181,8 @@ func (f *FileStorage) Lock() {
 
 func (f *FileStorage) Unlock() {
 	f.mu.Unlock()
+}
+
+func (f *FileStorage) Ping(_ context.Context) error {
+	return nil
 }

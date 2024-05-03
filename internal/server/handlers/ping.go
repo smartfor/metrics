@@ -1,20 +1,13 @@
 package handlers
 
 import (
-	"context"
-	"github.com/smartfor/metrics/internal/server/storage"
+	"github.com/smartfor/metrics/internal/core"
 	"net/http"
 )
 
-func MakePingHandler(dbStorage *storage.PostgresStorage) http.HandlerFunc {
+func MakePingHandler(s core.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if dbStorage == nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		err := dbStorage.Pool.Ping(context.Background())
-		if err != nil {
+		if err := s.Ping(r.Context()); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"github.com/smartfor/metrics/internal/server/utils"
 	"io"
@@ -19,6 +20,7 @@ type Storage interface {
 	Set(metric MetricType, key string, value string) error
 	Get(metric MetricType, key string) (string, error)
 	GetAll() (BaseMetricStorage, error)
+	Ping(ctx context.Context) error
 }
 
 type BaseMetricStorage struct {
@@ -30,6 +32,13 @@ func NewBaseMetricStorage() BaseMetricStorage {
 	return BaseMetricStorage{
 		gauges:   make(map[string]float64),
 		counters: make(map[string]int64),
+	}
+}
+
+func NewBaseMetricStorageWithValues(gauges map[string]float64, counters map[string]int64) BaseMetricStorage {
+	return BaseMetricStorage{
+		gauges:   gauges,
+		counters: counters,
 	}
 }
 

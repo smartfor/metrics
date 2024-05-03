@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/server/utils"
 	"sync"
@@ -128,4 +129,8 @@ func (s *MemStorage) Lock() {
 
 func (s *MemStorage) Unlock() {
 	s.mu.Unlock()
+}
+
+func (s *MemStorage) Ping(_ context.Context) error {
+	return nil
 }

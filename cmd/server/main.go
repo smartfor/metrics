@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/go-chi/chi/v5"
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/logger"
 	"github.com/smartfor/metrics/internal/server/config"
@@ -49,29 +50,33 @@ func main() {
 		}
 	}
 
-	router := handlers.Router(memStorage, postgresStorage, zlog)
+	var router chi.Router
+	if postgresStorage != nil {
+		router = handlers.Router(postgresStorage, zlog)
+	} else {
+		router = handlers.Router(memStorage, zlog)
+		if cfg.StoreInterval > 0 {
+			go func(
+				storage core.Storage,
+				backup core.Storage,
+				interval time.Duration,
+			) {
+				time.Sleep(interval)
+				ticker := time.NewTicker(interval)
+				defer ticker.Stop()
+
+				for range ticker.C {
+					if err := core.Sync(storage, backup); err != nil {
+						fmt.Println(err)
+						zlog.Error("Error sync metrics: ", zap.Error(err))
+					}
+				}
+			}(memStorage, backupStorage, cfg.StoreInterval)
+		}
+	}
 	server := &http.Server{
 		Addr:    cfg.Addr,
 		Handler: router,
-	}
-
-	if cfg.StoreInterval > 0 {
-		go func(
-			storage core.Storage,
-			backup core.Storage,
-			interval time.Duration,
-		) {
-			time.Sleep(interval)
-			ticker := time.NewTicker(interval)
-			defer ticker.Stop()
-
-			for range ticker.C {
-				if err := core.Sync(storage, backup); err != nil {
-					fmt.Println(err)
-					zlog.Error("Error sync metrics: ", zap.Error(err))
-				}
-			}
-		}(memStorage, backupStorage, cfg.StoreInterval)
 	}
 
 	done := make(chan os.Signal, 1)
