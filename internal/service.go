@@ -18,6 +18,7 @@ import (
 )
 
 var UpdateURL string = "/update/"
+var UpdateBatchURL string = "/updates/"
 
 type Metric = polling.MetricsModel
 
@@ -65,66 +66,43 @@ func (s *Service) Run() {
 }
 
 func (s *Service) send() {
-	fmt.Println("start send..")
-
-	var pollCountReportError bool
-
-	var wg sync.WaitGroup
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var (
+		batch      []metrics.Metrics
+		err        error
+		body       []byte
+		compressed []byte
+	)
 
 	for _, v := range s.store {
-		wg.Add(1)
-
-		go func(m Metric) {
-			defer wg.Done()
-
-			var (
-				err        error
-				metric     *metrics.Metrics
-				body       []byte
-				compressed []byte
-			)
-
-			if metric, err = metrics.FromMetricModel(m); err != nil {
-				fmt.Fprintln(os.Stderr, "Send report error: ", err)
-				return
-			}
-
-			if body, err = json.Marshal(metric); err != nil {
-				fmt.Fprintln(os.Stderr, "Send report error: ", err)
-				return
-			}
-
-			if compressed, err = utils.GzipCompress(body); err != nil {
-				fmt.Fprintln(os.Stderr, "Send report error: ", err)
-				return
-			}
-
-			_, err = s.client.R().
-				SetHeader("Content-Type", "application/json").
-				SetHeader("Accept-Encoding", "gzip").
-				SetHeader("Content-Encoding", "gzip").
-				SetBody(compressed).
-				//SetBody(body).
-				Post(UpdateURL)
-
-			if err != nil {
-				if m.Key == "PollCount" {
-					pollCountReportError = true
-				}
-
-				fmt.Fprintln(os.Stderr, "Send report error: ", err)
-			}
-		}(v)
+		metric, err := metrics.FromMetricModel(v)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Extract metric from model error: ", err)
+			return
+		}
+		batch = append(batch, *metric)
 	}
 
-	s.mu.Unlock()
-	wg.Wait()
-	fmt.Println("end send..")
-
-	if !pollCountReportError {
-		s.resetPollCounter()
+	if body, err = json.Marshal(batch); err != nil {
+		fmt.Fprintln(os.Stderr, "Marshalling batch error: ", err)
+		return
 	}
+
+	if compressed, err = utils.GzipCompress(body); err != nil {
+		fmt.Fprintln(os.Stderr, "Compressed body error: ", err)
+		return
+	}
+
+	fmt.Println("start send..")
+	_, err = s.client.R().
+		SetHeader("Content-Type", "application/json").
+		SetHeader("Accept-Encoding", "gzip").
+		SetHeader("Content-Encoding", "gzip").
+		SetBody(compressed).
+		Post(UpdateBatchURL)
+	fmt.Println("...End send")
 }
 
 func (s *Service) poll() {
