@@ -102,6 +102,13 @@ func (s *Service) send() {
 		SetHeader("Content-Encoding", "gzip").
 		SetBody(compressed).
 		Post(UpdateBatchURL)
+
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Send report error: ", err)
+		return
+	}
+
+	s.resetPollCounter()
 	fmt.Println("...End send")
 }
 
