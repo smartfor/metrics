@@ -110,11 +110,9 @@ func (s *PostgresStorage) Close() error {
 }
 
 func (s *PostgresStorage) Lock() {
-	return
 }
 
 func (s *PostgresStorage) Unlock() {
-	return
 }
 
 func (s *PostgresStorage) Ping(ctx context.Context) error {
