@@ -87,3 +87,40 @@ func MakeUpdateJSONHandler(s core.Storage) func(w http.ResponseWriter, r *http.R
 		w.WriteHeader(http.StatusOK)
 	}
 }
+
+func MakeBatchUpdateJSONHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		defer r.Body.Close()
+
+		var req []metrics.Metrics
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			utils.WriteError(w, err, http.StatusBadRequest)
+			return
+		}
+
+		gauges := make(map[string]float64)
+		counters := make(map[string]int64)
+
+		for _, m := range req {
+			switch core.NewMetricType(m.MType) {
+			case core.Gauge:
+				gauges[m.ID] = *m.Value
+			case core.Counter:
+				counters[m.ID] = *m.Delta
+			default:
+				utils.WriteError(w, core.ErrUnknownMetricType, http.StatusBadRequest)
+				return
+			}
+		}
+
+		batch := core.NewBaseMetricStorageWithValues(gauges, counters)
+		if err := s.SetBatch(r.Context(), batch); err != nil {
+			utils.WriteError(w, err, http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+	}
+}

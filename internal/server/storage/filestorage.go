@@ -52,9 +52,41 @@ func NewFileStorage(filepath string) (*FileStorage, error) {
 	}, nil
 }
 
+func (f *FileStorage) SetBatch(_ context.Context, batch core.BaseMetricStorage) error {
+	f.lock()
+	defer f.unlock()
+
+	metrics := &metrics{
+		Counters: make(map[string]int64),
+		Gauges:   make(map[string]float64),
+	}
+
+	if err := f.read(metrics); err != nil {
+		return err
+	}
+
+	for k, v := range batch.Gauges() {
+		metrics.Gauges[k] = v
+	}
+
+	for k, v := range batch.Counters() {
+		current, ok := metrics.Counters[k]
+		if !ok {
+			current = 0
+		}
+		metrics.Counters[k] = current + v
+	}
+
+	if err := f.write(metrics); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (f *FileStorage) Set(metric core.MetricType, key string, value string) error {
-	f.Lock()
-	defer f.Unlock()
+	f.lock()
+	defer f.unlock()
 
 	metrics := &metrics{
 		Counters: make(map[string]int64),
@@ -90,8 +122,8 @@ func (f *FileStorage) Set(metric core.MetricType, key string, value string) erro
 }
 
 func (f *FileStorage) Get(metric core.MetricType, key string) (string, error) {
-	f.Lock()
-	defer f.Unlock()
+	f.lock()
+	defer f.unlock()
 
 	var metrics metrics
 	if err := f.read(&metrics); err != nil {
@@ -117,8 +149,8 @@ func (f *FileStorage) Get(metric core.MetricType, key string) (string, error) {
 }
 
 func (f *FileStorage) GetAll() (core.BaseMetricStorage, error) {
-	f.Lock()
-	defer f.Unlock()
+	f.lock()
+	defer f.unlock()
 
 	var metrics metrics
 	if err := f.read(&metrics); err != nil {
@@ -175,11 +207,11 @@ func (f *FileStorage) Close() error {
 	return f.file.Close()
 }
 
-func (f *FileStorage) Lock() {
+func (f *FileStorage) lock() {
 	f.mu.Lock()
 }
 
-func (f *FileStorage) Unlock() {
+func (f *FileStorage) unlock() {
 	f.mu.Unlock()
 }
 

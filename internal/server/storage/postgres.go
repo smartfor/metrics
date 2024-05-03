@@ -31,7 +31,36 @@ func NewPostgresStorage(ctx context.Context, dsn string) (*PostgresStorage, erro
 	return &s, nil
 }
 
+func (s *PostgresStorage) SetBatch(ctx context.Context, batch core.BaseMetricStorage) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	for k, v := range batch.Gauges() {
+		if _, err := s.upsertGauge(tx, k, v); err != nil {
+			return err
+		}
+	}
+
+	for k, v := range batch.Counters() {
+		if _, err := s.upsertCounter(tx, k, v); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit(ctx)
+}
+
 func (s *PostgresStorage) Set(metric core.MetricType, key string, value string) error {
+	ctx := context.TODO()
+	tx, err := s.pool.Begin(context.TODO())
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
 	switch metric {
 	case core.Gauge:
 		{
@@ -40,7 +69,7 @@ func (s *PostgresStorage) Set(metric core.MetricType, key string, value string) 
 				return core.ErrBadMetricValue
 			}
 
-			_, err = s.upsertGauge(key, val)
+			_, err = s.upsertGauge(tx, key, val)
 			if err != nil {
 				return err
 			}
@@ -53,7 +82,7 @@ func (s *PostgresStorage) Set(metric core.MetricType, key string, value string) 
 				return core.ErrBadMetricValue
 			}
 
-			_, err = s.upsertCounter(key, delta)
+			_, err = s.upsertCounter(tx, key, delta)
 			if err != nil {
 				return err
 			}
@@ -109,12 +138,6 @@ func (s *PostgresStorage) Close() error {
 	return nil
 }
 
-func (s *PostgresStorage) Lock() {
-}
-
-func (s *PostgresStorage) Unlock() {
-}
-
 func (s *PostgresStorage) Ping(ctx context.Context) error {
 	return s.pool.Ping(ctx)
 }
@@ -140,12 +163,11 @@ func (s *PostgresStorage) Initialize() error {
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
-func (s *PostgresStorage) upsertGauge(key string, value float64) (pgconn.CommandTag, error) {
-	return s.pool.Exec(
+func (s *PostgresStorage) upsertGauge(tx pgx.Tx, key string, value float64) (pgconn.CommandTag, error) {
+	return tx.Exec(
 		context.TODO(),
 		`INSERT INTO gauges (key, value)
 			VALUES ($1, $2)
@@ -155,8 +177,8 @@ func (s *PostgresStorage) upsertGauge(key string, value float64) (pgconn.Command
 	)
 }
 
-func (s *PostgresStorage) upsertCounter(key string, delta int64) (pgconn.CommandTag, error) {
-	return s.pool.Exec(
+func (s *PostgresStorage) upsertCounter(tx pgx.Tx, key string, delta int64) (pgconn.CommandTag, error) {
+	return tx.Exec(
 		context.TODO(),
 		`INSERT INTO counters (key, value)
 		    	VALUES ($1, $2)
@@ -202,6 +224,8 @@ func (s *PostgresStorage) getAllGauges() (map[string]float64, error) {
 		return nil, err
 	}
 
+	defer query.Close()
+
 	rows := make(map[string]float64)
 	for query.Next() {
 		var id string
@@ -220,6 +244,8 @@ func (s *PostgresStorage) getAllCounters() (map[string]int64, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	defer query.Close()
 
 	rows := make(map[string]int64)
 	for query.Next() {

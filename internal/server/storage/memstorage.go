@@ -14,6 +14,27 @@ type MemStorage struct {
 	mu          *sync.Mutex
 }
 
+func (s *MemStorage) SetBatch(_ context.Context, batch core.BaseMetricStorage) error {
+	s.lock()
+	for k, v := range batch.Gauges() {
+		s.SetGauge(k, v)
+	}
+
+	for k, v := range batch.Counters() {
+		s.SetCounter(k, v)
+	}
+	s.unlock()
+
+	if s.synchronize {
+		err := core.Sync(s, s.backup)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func NewMemStorage(backup core.Storage, restore bool, synchronize bool) (*MemStorage, error) {
 	s := &MemStorage{
 		BaseMetricStorage: core.NewBaseMetricStorage(),
@@ -32,8 +53,8 @@ func NewMemStorage(backup core.Storage, restore bool, synchronize bool) (*MemSto
 }
 
 func (s *MemStorage) Set(metric core.MetricType, key string, value string) error {
-	s.Lock()
-	defer s.Unlock()
+	s.lock()
+	defer s.unlock()
 
 	switch metric {
 	case core.Gauge:
@@ -77,8 +98,8 @@ func (s *MemStorage) Set(metric core.MetricType, key string, value string) error
 }
 
 func (s *MemStorage) Get(metric core.MetricType, key string) (string, error) {
-	s.Lock()
-	defer s.Unlock()
+	s.lock()
+	defer s.unlock()
 
 	switch metric {
 	case core.Gauge:
@@ -106,15 +127,15 @@ func (s *MemStorage) Get(metric core.MetricType, key string) (string, error) {
 }
 
 func (s *MemStorage) GetAll() (core.BaseMetricStorage, error) {
-	s.Lock()
-	defer s.Unlock()
+	s.lock()
+	defer s.unlock()
 
 	return core.CloneBaseMetricStorage(&s.BaseMetricStorage), nil
 }
 
 func (s *MemStorage) Close() error {
-	s.Lock()
-	defer s.Unlock()
+	s.lock()
+	defer s.unlock()
 
 	if err := s.backup.Close(); err != nil {
 		return err
@@ -123,11 +144,11 @@ func (s *MemStorage) Close() error {
 	return nil
 }
 
-func (s *MemStorage) Lock() {
+func (s *MemStorage) lock() {
 	s.mu.Lock()
 }
 
-func (s *MemStorage) Unlock() {
+func (s *MemStorage) unlock() {
 	s.mu.Unlock()
 }
 

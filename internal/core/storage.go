@@ -5,7 +5,6 @@ import (
 	"errors"
 	"github.com/smartfor/metrics/internal/server/utils"
 	"io"
-	"sync"
 )
 
 var (
@@ -16,8 +15,8 @@ var (
 
 type Storage interface {
 	io.Closer
-	sync.Locker
 	Set(metric MetricType, key string, value string) error
+	SetBatch(ctx context.Context, batch BaseMetricStorage) error
 	Get(metric MetricType, key string) (string, error)
 	GetAll() (BaseMetricStorage, error)
 	Ping(ctx context.Context) error
