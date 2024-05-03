@@ -50,7 +50,7 @@ func (s *Service) Run() {
 	go func() {
 		for {
 			if s.isEmptyStore() {
-				time.Sleep(1 * time.Second)
+				time.Sleep(100 * time.Millisecond)
 				continue
 			}
 
@@ -67,7 +67,9 @@ func (s *Service) Run() {
 
 func (s *Service) send() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	defer func() {
+
+	}()
 
 	var (
 		batch      []metrics.Metrics
@@ -87,11 +89,15 @@ func (s *Service) send() {
 
 	if body, err = json.Marshal(batch); err != nil {
 		fmt.Fprintln(os.Stderr, "Marshalling batch error: ", err)
+		fmt.Println("...End send")
+		s.mu.Unlock()
 		return
 	}
 
 	if compressed, err = utils.GzipCompress(body); err != nil {
 		fmt.Fprintln(os.Stderr, "Compressed body error: ", err)
+		fmt.Println("...End send")
+		s.mu.Unlock()
 		return
 	}
 
@@ -105,11 +111,13 @@ func (s *Service) send() {
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Send report error: ", err)
+		fmt.Println("...End send")
+		s.mu.Unlock()
 		return
 	}
 
+	s.mu.Unlock()
 	s.resetPollCounter()
-	fmt.Println("...End send")
 }
 
 func (s *Service) poll() {
