@@ -108,7 +108,11 @@ func MakeBatchUpdateJSONHandler(s core.Storage) func(w http.ResponseWriter, r *h
 			case core.Gauge:
 				gauges[m.ID] = *m.Value
 			case core.Counter:
-				counters[m.ID] = *m.Delta
+				v, ok := counters[m.ID]
+				if !ok {
+					v = 0
+				}
+				counters[m.ID] = v + *m.Delta
 			default:
 				utils.WriteError(w, core.ErrUnknownMetricType, http.StatusBadRequest)
 				return
