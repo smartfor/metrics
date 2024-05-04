@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/server/utils"
+	utils2 "github.com/smartfor/metrics/internal/utils"
 )
 
 type PostgresStorage struct {
@@ -15,7 +16,9 @@ type PostgresStorage struct {
 }
 
 func NewPostgresStorage(ctx context.Context, dsn string) (*PostgresStorage, error) {
-	pool, err := pgxpool.New(ctx, dsn)
+	pool, err := utils2.Retry(func() (*pgxpool.Pool, error) {
+		return pgxpool.New(ctx, dsn)
+	}, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -31,83 +34,30 @@ func NewPostgresStorage(ctx context.Context, dsn string) (*PostgresStorage, erro
 	return &s, nil
 }
 
+// Создает таблицы gauges и counters в базе данных
+func (s *PostgresStorage) Initialize() error {
+	return utils2.RetryVoid(s.initialize, nil)
+}
+
 func (s *PostgresStorage) SetBatch(ctx context.Context, batch core.BaseMetricStorage) error {
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-
-	for k, v := range batch.Gauges() {
-		if _, err := s.upsertGauge(tx, k, v); err != nil {
-			return err
-		}
-	}
-
-	for k, v := range batch.Counters() {
-		if _, err := s.upsertCounter(tx, k, v); err != nil {
-			return err
-		}
-	}
-
-	return tx.Commit(ctx)
+	return utils2.RetryVoid(func() error {
+		return s.setBatch(ctx, batch)
+	}, nil)
 }
 
 func (s *PostgresStorage) Set(metric core.MetricType, key string, value string) error {
-	ctx := context.TODO()
-	tx, err := s.pool.Begin(context.TODO())
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-
-	switch metric {
-	case core.Gauge:
-		{
-			val, err := utils.GaugeFromString(value)
-			if err != nil {
-				return core.ErrBadMetricValue
-			}
-
-			_, err = s.upsertGauge(tx, key, val)
-			if err != nil {
-				return err
-			}
-			err = tx.Commit(ctx)
-			if err != nil {
-				return err
-			}
-		}
-
-	case core.Counter:
-		{
-			delta, err := utils.CounterFromString(value)
-			if err != nil {
-				return core.ErrBadMetricValue
-			}
-
-			_, err = s.upsertCounter(tx, key, delta)
-			if err != nil {
-				return err
-			}
-			err = tx.Commit(ctx)
-			if err != nil {
-				return err
-			}
-		}
-
-	default:
-		return core.ErrUnknownMetricType
-	}
-
-	return nil
+	return utils2.RetryVoid(func() error {
+		return s.set(metric, key, value)
+	}, nil)
 }
 
 func (s *PostgresStorage) Get(metric core.MetricType, key string) (string, error) {
 	switch metric {
 	case core.Gauge:
 		{
-			v, err := s.getGauge(key)
+			v, err := utils2.Retry(func() (float64, error) {
+				return s.getGauge(key)
+			}, nil)
 			if err != nil {
 				return "", err
 			}
@@ -116,7 +66,9 @@ func (s *PostgresStorage) Get(metric core.MetricType, key string) (string, error
 		}
 	case core.Counter:
 		{
-			d, err := s.getCounter(key)
+			d, err := utils2.Retry(func() (int64, error) {
+				return s.getCounter(key)
+			}, nil)
 			if err != nil {
 				return "", err
 			}
@@ -129,16 +81,7 @@ func (s *PostgresStorage) Get(metric core.MetricType, key string) (string, error
 }
 
 func (s *PostgresStorage) GetAll() (core.BaseMetricStorage, error) {
-	gauges, err := s.getAllGauges()
-	if err != nil {
-		return core.BaseMetricStorage{}, err
-	}
-	counters, err := s.getAllCounters()
-	if err != nil {
-		return core.BaseMetricStorage{}, err
-	}
-
-	return core.NewBaseMetricStorageWithValues(gauges, counters), nil
+	return utils2.Retry(s.getAll, nil)
 }
 
 func (s *PostgresStorage) Close() error {
@@ -148,30 +91,6 @@ func (s *PostgresStorage) Close() error {
 
 func (s *PostgresStorage) Ping(ctx context.Context) error {
 	return s.pool.Ping(ctx)
-}
-
-// Создает таблицы gauges и counters в базе данных
-func (s *PostgresStorage) Initialize() error {
-	_, err := s.pool.Exec(context.Background(), `
-		CREATE TABLE IF NOT EXISTS gauges (
-			key VARCHAR(255) PRIMARY KEY,
-			value DOUBLE PRECISION
-		);
-	`)
-	if err != nil {
-		return err
-	}
-
-	_, err = s.pool.Exec(context.Background(), `
-		CREATE TABLE IF NOT EXISTS counters (
-			key VARCHAR(255) PRIMARY KEY,
-			value INT8
-		);
-	`)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (s *PostgresStorage) upsertGauge(tx pgx.Tx, key string, value float64) (pgconn.CommandTag, error) {
@@ -266,4 +185,115 @@ func (s *PostgresStorage) getAllCounters() (map[string]int64, error) {
 	}
 
 	return rows, nil
+}
+
+func (s *PostgresStorage) getAll() (core.BaseMetricStorage, error) {
+	gauges, err := s.getAllGauges()
+	if err != nil {
+		return core.BaseMetricStorage{}, err
+	}
+
+	counters, err := s.getAllCounters()
+	if err != nil {
+		return core.BaseMetricStorage{}, err
+	}
+
+	return core.NewBaseMetricStorageWithValues(gauges, counters), nil
+}
+
+func (s *PostgresStorage) initialize() error {
+	_, err := s.pool.Exec(context.Background(), `
+		CREATE TABLE IF NOT EXISTS gauges (
+			key VARCHAR(255) PRIMARY KEY,
+			value DOUBLE PRECISION
+		);
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.pool.Exec(context.Background(), `
+		CREATE TABLE IF NOT EXISTS counters (
+			key VARCHAR(255) PRIMARY KEY,
+			value INT8
+		);
+	`)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *PostgresStorage) set(metric core.MetricType, key string, value string) error {
+	ctx := context.TODO()
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	switch metric {
+	case core.Gauge:
+		{
+			val, err := utils.GaugeFromString(value)
+			if err != nil {
+				return core.ErrBadMetricValue
+			}
+
+			_, err = s.upsertGauge(tx, key, val)
+			if err != nil {
+				return err
+			}
+
+			err = tx.Commit(ctx)
+			if err != nil {
+				return err
+			}
+		}
+
+	case core.Counter:
+		{
+			delta, err := utils.CounterFromString(value)
+			if err != nil {
+				return core.ErrBadMetricValue
+			}
+
+			_, err = s.upsertCounter(tx, key, delta)
+			if err != nil {
+				return err
+			}
+
+			err = tx.Commit(ctx)
+			if err != nil {
+				return err
+			}
+		}
+
+	default:
+		return core.ErrUnknownMetricType
+	}
+
+	return nil
+}
+
+func (s *PostgresStorage) setBatch(ctx context.Context, batch core.BaseMetricStorage) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	for k, v := range batch.Gauges() {
+		if _, err := s.upsertGauge(tx, k, v); err != nil {
+			return err
+		}
+	}
+
+	for k, v := range batch.Counters() {
+		if _, err := s.upsertCounter(tx, k, v); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit(ctx)
 }
