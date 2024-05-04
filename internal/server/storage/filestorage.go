@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/server/utils"
+	utils2 "github.com/smartfor/metrics/internal/utils"
 	"io"
 	"os"
 	"sync"
@@ -77,7 +78,9 @@ func (f *FileStorage) SetBatch(_ context.Context, batch core.BaseMetricStorage) 
 		metrics.Counters[k] = current + v
 	}
 
-	if err := f.write(metrics); err != nil {
+	if err := utils2.RetryVoid(func() error {
+		return f.write(metrics)
+	}, nil); err != nil {
 		return err
 	}
 
@@ -114,7 +117,9 @@ func (f *FileStorage) Set(metric core.MetricType, key string, value string) erro
 		return core.ErrUnknownMetricType
 	}
 
-	if err := f.write(metrics); err != nil {
+	if err := utils2.RetryVoid(func() error {
+		return f.write(metrics)
+	}, nil); err != nil {
 		return err
 	}
 
