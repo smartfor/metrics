@@ -99,13 +99,14 @@ func (s *Service) send() {
 	}
 
 	fmt.Println("start send..")
-	_, err = s.client.R().
-		SetHeader("Content-Type", "application/json").
-		SetHeader("Accept-Encoding", "gzip").
-		SetHeader("Content-Encoding", "gzip").
-		SetBody(compressed).
-		Post(UpdateBatchURL)
-
+	_, err = utils.Retry(func() (*resty.Response, error) {
+		return s.client.R().
+			SetHeader("Content-Type", "application/json").
+			SetHeader("Accept-Encoding", "gzip").
+			SetHeader("Content-Encoding", "gzip").
+			SetBody(compressed).
+			Post(UpdateBatchURL)
+	}, nil)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Send report error: ", err)
 		fmt.Println("...End send")
