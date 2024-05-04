@@ -21,7 +21,7 @@ var DefaultRetryConfig = RetryConfig{
 	Attempts:   3,
 	StartDelay: time.Second,
 	IncrementDelayFn: func(prev time.Duration) time.Duration {
-		return prev * 3
+		return prev + 2
 	},
 }
 
