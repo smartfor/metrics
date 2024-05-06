@@ -8,7 +8,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/server/utils"
-	utils2 "github.com/smartfor/metrics/internal/utils"
 )
 
 type PostgresStorage struct {
@@ -16,9 +15,7 @@ type PostgresStorage struct {
 }
 
 func NewPostgresStorage(ctx context.Context, dsn string) (*PostgresStorage, error) {
-	pool, err := utils2.Retry(func() (*pgxpool.Pool, error) {
-		return pgxpool.New(ctx, dsn)
-	}, nil)
+	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		return nil, err
 	}
@@ -36,28 +33,22 @@ func NewPostgresStorage(ctx context.Context, dsn string) (*PostgresStorage, erro
 
 // Создает таблицы gauges и counters в базе данных
 func (s *PostgresStorage) Initialize() error {
-	return utils2.RetryVoid(s.initialize, nil)
+	return s.initialize()
 }
 
 func (s *PostgresStorage) SetBatch(ctx context.Context, batch core.BaseMetricStorage) error {
-	return utils2.RetryVoid(func() error {
-		return s.setBatch(ctx, batch)
-	}, nil)
+	return s.setBatch(ctx, batch)
 }
 
-func (s *PostgresStorage) Set(metric core.MetricType, key string, value string) error {
-	return utils2.RetryVoid(func() error {
-		return s.set(metric, key, value)
-	}, nil)
+func (s *PostgresStorage) Set(ctx context.Context, key string, value string, metric core.MetricType) error {
+	return s.set(ctx, metric, key, value)
 }
 
-func (s *PostgresStorage) Get(metric core.MetricType, key string) (string, error) {
+func (s *PostgresStorage) Get(ctx context.Context, key string, metric core.MetricType) (string, error) {
 	switch metric {
 	case core.Gauge:
 		{
-			v, err := utils2.Retry(func() (float64, error) {
-				return s.getGauge(key)
-			}, nil)
+			v, err := s.getGauge(ctx, key)
 			if err != nil {
 				return "", err
 			}
@@ -66,9 +57,7 @@ func (s *PostgresStorage) Get(metric core.MetricType, key string) (string, error
 		}
 	case core.Counter:
 		{
-			d, err := utils2.Retry(func() (int64, error) {
-				return s.getCounter(key)
-			}, nil)
+			d, err := s.getCounter(ctx, key)
 			if err != nil {
 				return "", err
 			}
@@ -80,8 +69,8 @@ func (s *PostgresStorage) Get(metric core.MetricType, key string) (string, error
 	}
 }
 
-func (s *PostgresStorage) GetAll() (core.BaseMetricStorage, error) {
-	return utils2.Retry(s.getAll, nil)
+func (s *PostgresStorage) GetAll(ctx context.Context) (core.BaseMetricStorage, error) {
+	return s.getAll(ctx)
 }
 
 func (s *PostgresStorage) Close() error {
@@ -93,9 +82,9 @@ func (s *PostgresStorage) Ping(ctx context.Context) error {
 	return s.pool.Ping(ctx)
 }
 
-func (s *PostgresStorage) upsertGauge(tx pgx.Tx, key string, value float64) (pgconn.CommandTag, error) {
+func (s *PostgresStorage) upsertGauge(ctx context.Context, tx pgx.Tx, key string, value float64) (pgconn.CommandTag, error) {
 	return tx.Exec(
-		context.TODO(),
+		ctx,
 		`INSERT INTO gauges (key, value)
 			VALUES ($1, $2)
 			ON CONFLICT (key)
@@ -104,9 +93,9 @@ func (s *PostgresStorage) upsertGauge(tx pgx.Tx, key string, value float64) (pgc
 	)
 }
 
-func (s *PostgresStorage) upsertCounter(tx pgx.Tx, key string, delta int64) (pgconn.CommandTag, error) {
+func (s *PostgresStorage) upsertCounter(ctx context.Context, tx pgx.Tx, key string, delta int64) (pgconn.CommandTag, error) {
 	return tx.Exec(
-		context.TODO(),
+		ctx,
 		`INSERT INTO counters (key, value)
 		    	VALUES ($1, $2)
 			ON CONFLICT (key)
@@ -115,7 +104,7 @@ func (s *PostgresStorage) upsertCounter(tx pgx.Tx, key string, delta int64) (pgc
 	)
 }
 
-func (s *PostgresStorage) getGauge(key string) (float64, error) {
+func (s *PostgresStorage) getGauge(ctx context.Context, key string) (float64, error) {
 	var value float64
 	err := s.pool.QueryRow(
 		context.TODO(),
@@ -130,10 +119,10 @@ func (s *PostgresStorage) getGauge(key string) (float64, error) {
 	return value, err
 }
 
-func (s *PostgresStorage) getCounter(key string) (int64, error) {
+func (s *PostgresStorage) getCounter(ctx context.Context, key string) (int64, error) {
 	var delta int64
 	err := s.pool.QueryRow(
-		context.TODO(),
+		ctx,
 		`SELECT (value) FROM counters WHERE key = $1 LIMIT 1`,
 		key,
 	).Scan(&delta)
@@ -145,8 +134,8 @@ func (s *PostgresStorage) getCounter(key string) (int64, error) {
 	return delta, err
 }
 
-func (s *PostgresStorage) getAllGauges() (map[string]float64, error) {
-	query, err := s.pool.Query(context.TODO(), `SELECT FROM gauges`)
+func (s *PostgresStorage) getAllGauges(ctx context.Context) (map[string]float64, error) {
+	query, err := s.pool.Query(ctx, `SELECT FROM gauges`)
 	if err != nil {
 		return nil, err
 	}
@@ -166,8 +155,8 @@ func (s *PostgresStorage) getAllGauges() (map[string]float64, error) {
 	return rows, nil
 }
 
-func (s *PostgresStorage) getAllCounters() (map[string]int64, error) {
-	query, err := s.pool.Query(context.TODO(), `SELECT (key, value) FROM counters`)
+func (s *PostgresStorage) getAllCounters(ctx context.Context) (map[string]int64, error) {
+	query, err := s.pool.Query(ctx, `SELECT (key, value) FROM counters`)
 	if err != nil {
 		return nil, err
 	}
@@ -187,13 +176,13 @@ func (s *PostgresStorage) getAllCounters() (map[string]int64, error) {
 	return rows, nil
 }
 
-func (s *PostgresStorage) getAll() (core.BaseMetricStorage, error) {
-	gauges, err := s.getAllGauges()
+func (s *PostgresStorage) getAll(ctx context.Context) (core.BaseMetricStorage, error) {
+	gauges, err := s.getAllGauges(ctx)
 	if err != nil {
 		return core.BaseMetricStorage{}, err
 	}
 
-	counters, err := s.getAllCounters()
+	counters, err := s.getAllCounters(ctx)
 	if err != nil {
 		return core.BaseMetricStorage{}, err
 	}
@@ -224,8 +213,7 @@ func (s *PostgresStorage) initialize() error {
 	return nil
 }
 
-func (s *PostgresStorage) set(metric core.MetricType, key string, value string) error {
-	ctx := context.TODO()
+func (s *PostgresStorage) set(ctx context.Context, metric core.MetricType, key string, value string) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -240,7 +228,7 @@ func (s *PostgresStorage) set(metric core.MetricType, key string, value string) 
 				return core.ErrBadMetricValue
 			}
 
-			_, err = s.upsertGauge(tx, key, val)
+			_, err = s.upsertGauge(ctx, tx, key, val)
 			if err != nil {
 				return err
 			}
@@ -258,7 +246,7 @@ func (s *PostgresStorage) set(metric core.MetricType, key string, value string) 
 				return core.ErrBadMetricValue
 			}
 
-			_, err = s.upsertCounter(tx, key, delta)
+			_, err = s.upsertCounter(ctx, tx, key, delta)
 			if err != nil {
 				return err
 			}
@@ -284,13 +272,13 @@ func (s *PostgresStorage) setBatch(ctx context.Context, batch core.BaseMetricSto
 	defer tx.Rollback(ctx)
 
 	for k, v := range batch.Gauges() {
-		if _, err := s.upsertGauge(tx, k, v); err != nil {
+		if _, err := s.upsertGauge(ctx, tx, k, v); err != nil {
 			return err
 		}
 	}
 
 	for k, v := range batch.Counters() {
-		if _, err := s.upsertCounter(tx, k, v); err != nil {
+		if _, err := s.upsertCounter(ctx, tx, k, v); err != nil {
 			return err
 		}
 	}

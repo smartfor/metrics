@@ -52,7 +52,7 @@ func NewMemStorage(backup core.Storage, restore bool, synchronize bool) (*MemSto
 	return s, nil
 }
 
-func (s *MemStorage) Set(metric core.MetricType, key string, value string) error {
+func (s *MemStorage) Set(ctx context.Context, key string, value string, metric core.MetricType) error {
 	s.lock()
 	defer s.unlock()
 
@@ -89,7 +89,7 @@ func (s *MemStorage) Set(metric core.MetricType, key string, value string) error
 			v, _ := s.GetCounter(key)
 			value = utils.CounterAsString(v)
 		}
-		if err := s.backup.Set(metric, key, value); err != nil {
+		if err := s.backup.Set(nil, key, value, metric); err != nil {
 			return err
 		}
 	}
@@ -97,7 +97,7 @@ func (s *MemStorage) Set(metric core.MetricType, key string, value string) error
 	return nil
 }
 
-func (s *MemStorage) Get(metric core.MetricType, key string) (string, error) {
+func (s *MemStorage) Get(ctx context.Context, key string, metric core.MetricType) (string, error) {
 	s.lock()
 	defer s.unlock()
 
@@ -126,7 +126,7 @@ func (s *MemStorage) Get(metric core.MetricType, key string) (string, error) {
 	}
 }
 
-func (s *MemStorage) GetAll() (core.BaseMetricStorage, error) {
+func (s *MemStorage) GetAll(context.Context) (core.BaseMetricStorage, error) {
 	s.lock()
 	defer s.unlock()
 

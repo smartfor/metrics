@@ -15,10 +15,10 @@ var (
 
 type Storage interface {
 	io.Closer
-	Set(metric MetricType, key string, value string) error
+	Set(ctx context.Context, key string, value string, metric MetricType) error
 	SetBatch(ctx context.Context, batch BaseMetricStorage) error
-	Get(metric MetricType, key string) (string, error)
-	GetAll() (BaseMetricStorage, error)
+	Get(ctx context.Context, key string, metric MetricType) (string, error)
+	GetAll(ctx context.Context) (BaseMetricStorage, error)
 	Ping(ctx context.Context) error
 }
 
@@ -89,19 +89,19 @@ func (bs *BaseMetricStorage) SetCounter(key string, delta int64) {
 }
 
 func Sync(source Storage, target Storage) error {
-	main, err := source.GetAll()
+	main, err := source.GetAll(nil)
 	if err != nil {
 		return err
 	}
 
 	for k, v := range main.Gauges() {
-		if err := target.Set(Gauge, k, utils.GaugeAsString(v)); err != nil {
+		if err := target.Set(nil, k, utils.GaugeAsString(v), Gauge); err != nil {
 			return err
 		}
 	}
 
 	for k, v := range main.Counters() {
-		if err := target.Set(Counter, k, utils.CounterAsString(v)); err != nil {
+		if err := target.Set(nil, k, utils.CounterAsString(v), Counter); err != nil {
 			return err
 		}
 	}

@@ -87,7 +87,7 @@ func (f *FileStorage) SetBatch(_ context.Context, batch core.BaseMetricStorage) 
 	return nil
 }
 
-func (f *FileStorage) Set(metric core.MetricType, key string, value string) error {
+func (f *FileStorage) Set(ctx context.Context, key string, value string, metric core.MetricType) error {
 	f.lock()
 	defer f.unlock()
 
@@ -126,7 +126,7 @@ func (f *FileStorage) Set(metric core.MetricType, key string, value string) erro
 	return nil
 }
 
-func (f *FileStorage) Get(metric core.MetricType, key string) (string, error) {
+func (f *FileStorage) Get(ctx context.Context, key string, metric core.MetricType) (string, error) {
 	f.lock()
 	defer f.unlock()
 
@@ -153,7 +153,7 @@ func (f *FileStorage) Get(metric core.MetricType, key string) (string, error) {
 	}
 }
 
-func (f *FileStorage) GetAll() (core.BaseMetricStorage, error) {
+func (f *FileStorage) GetAll(context.Context) (core.BaseMetricStorage, error) {
 	f.lock()
 	defer f.unlock()
 

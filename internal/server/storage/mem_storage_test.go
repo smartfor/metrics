@@ -63,10 +63,10 @@ func TestMemStorage_Get(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			s.Set(core.Gauge, "k1", "1")
-			s.Set(core.Counter, "c1", "42")
+			s.Set(nil, "k1", "1", core.Gauge)
+			s.Set(nil, "c1", "42", core.Counter)
 
-			value, err := s.Get(tt.metricType, tt.key)
+			value, err := s.Get(nil, tt.key, tt.metricType)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -140,13 +140,13 @@ func TestMemStorage_Set(t *testing.T) {
 			}
 
 			mType := core.NewMetricType(string(tt.metricType))
-			err = s.Set(mType, tt.key, tt.value)
+			err = s.Set(nil, tt.key, tt.value, mType)
 
 			if tt.wantErr {
 				require.Error(t, err)
 			}
 
-			m, _ := s.Get(tt.metricType, tt.key)
+			m, _ := s.Get(nil, tt.key, tt.metricType)
 			assert.Equal(t, tt.expected, m)
 		})
 	}
@@ -162,12 +162,12 @@ func TestMemStorage_Set(t *testing.T) {
 		}
 
 		k := "someCounter"
-		s.Set(core.Counter, k, "12")
-		s.Set(core.Counter, k, "2")
-		s.Set(core.Counter, k, "8")
-		s.Set(core.Counter, k, "-7")
+		s.Set(nil, k, "12", core.Counter)
+		s.Set(nil, k, "2", core.Counter)
+		s.Set(nil, k, "8", core.Counter)
+		s.Set(nil, k, "-7", core.Counter)
 
-		actual, _ := s.Get(core.Counter, k)
+		actual, _ := s.Get(nil, k, core.Counter)
 		assert.Equal(t, "15", actual)
 	})
 }
