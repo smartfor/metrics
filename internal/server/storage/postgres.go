@@ -107,7 +107,7 @@ func (s *PostgresStorage) upsertCounter(ctx context.Context, tx pgx.Tx, key stri
 func (s *PostgresStorage) getGauge(ctx context.Context, key string) (float64, error) {
 	var value float64
 	err := s.pool.QueryRow(
-		context.TODO(),
+		ctx,
 		`SELECT (value) FROM gauges WHERE key = $1 LIMIT 1`,
 		key,
 	).Scan(&value)

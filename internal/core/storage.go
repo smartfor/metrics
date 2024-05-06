@@ -88,20 +88,20 @@ func (bs *BaseMetricStorage) SetCounter(key string, delta int64) {
 	bs.counters[key] += delta
 }
 
-func Sync(source Storage, target Storage) error {
-	main, err := source.GetAll(nil)
+func Sync(ctx context.Context, source Storage, target Storage) error {
+	main, err := source.GetAll(ctx)
 	if err != nil {
 		return err
 	}
 
 	for k, v := range main.Gauges() {
-		if err := target.Set(nil, k, utils.GaugeAsString(v), Gauge); err != nil {
+		if err := target.Set(ctx, k, utils.GaugeAsString(v), Gauge); err != nil {
 			return err
 		}
 	}
 
 	for k, v := range main.Counters() {
-		if err := target.Set(nil, k, utils.CounterAsString(v), Counter); err != nil {
+		if err := target.Set(ctx, k, utils.CounterAsString(v), Counter); err != nil {
 			return err
 		}
 	}

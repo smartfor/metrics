@@ -44,7 +44,7 @@ func main() {
 
 	var postgresStorage *storage.PostgresStorage
 	if cfg.DatabaseDSN != "" {
-		postgresStorage, err = storage.NewPostgresStorage(context.TODO(), cfg.DatabaseDSN)
+		postgresStorage, err = storage.NewPostgresStorage(context.Background(), cfg.DatabaseDSN)
 		if err != nil {
 			zlog.Fatal("Error creatingPostgresStorage: ", zap.Error(err))
 		}
@@ -66,7 +66,7 @@ func main() {
 				defer ticker.Stop()
 
 				for range ticker.C {
-					if err := core.Sync(storage, backup); err != nil {
+					if err := core.Sync(context.Background(), storage, backup); err != nil {
 						fmt.Println(err)
 						zlog.Error("Error sync metrics: ", zap.Error(err))
 					}
@@ -98,7 +98,7 @@ func main() {
 
 	log.Printf("Server is ready to handle requests at %s", cfg.Addr)
 	if err := server.ListenAndServe(); err != nil && errors.Is(err, http.ErrServerClosed) {
-		if err := core.Sync(memStorage, backupStorage); err != nil {
+		if err := core.Sync(context.Background(), memStorage, backupStorage); err != nil {
 			zlog.Fatal("Memstorage Backup Failed: ", zap.Error(err))
 		}
 		if err := memStorage.Close(); err != nil {

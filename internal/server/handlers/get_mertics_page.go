@@ -11,7 +11,7 @@ import (
 
 func MakeGetMetricsPageHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		m, err := s.GetAll(nil)
+		m, err := s.GetAll(r.Context())
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 		}

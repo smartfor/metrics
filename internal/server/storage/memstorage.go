@@ -89,7 +89,7 @@ func (s *MemStorage) Set(ctx context.Context, key string, value string, metric c
 			v, _ := s.GetCounter(key)
 			value = utils.CounterAsString(v)
 		}
-		if err := s.backup.Set(nil, key, value, metric); err != nil {
+		if err := s.backup.Set(ctx, key, value, metric); err != nil {
 			return err
 		}
 	}

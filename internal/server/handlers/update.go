@@ -15,7 +15,7 @@ func MakeUpdateHandler(s core.Storage) func(w http.ResponseWriter, r *http.Reque
 		key := chi.URLParam(r, "key")
 		value := chi.URLParam(r, "value")
 
-		err := s.Set(nil, key, value, metric)
+		err := s.Set(r.Context(), key, value, metric)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -42,13 +42,13 @@ func MakeUpdateJSONHandler(s core.Storage) func(w http.ResponseWriter, r *http.R
 		switch mType {
 		case core.Counter:
 			{
-				err := s.Set(nil, req.ID, utils.CounterAsString(*req.Delta), mType)
+				err := s.Set(r.Context(), req.ID, utils.CounterAsString(*req.Delta), mType)
 				if err != nil {
 					utils.WriteError(w, err, http.StatusBadRequest)
 					return
 				}
 
-				newValue, err := s.Get(nil, req.ID, mType)
+				newValue, err := s.Get(r.Context(), req.ID, mType)
 				if err != nil {
 					utils.WriteError(w, err, http.StatusBadRequest)
 					return
@@ -68,7 +68,7 @@ func MakeUpdateJSONHandler(s core.Storage) func(w http.ResponseWriter, r *http.R
 			}
 		case core.Gauge:
 			{
-				err := s.Set(nil, req.ID, utils.GaugeAsString(*req.Value), mType)
+				err := s.Set(r.Context(), req.ID, utils.GaugeAsString(*req.Value), mType)
 				if err != nil {
 					utils.WriteError(w, err, http.StatusBadRequest)
 					return

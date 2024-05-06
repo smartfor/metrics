@@ -14,7 +14,7 @@ func MakeGetValueHandler(s core.Storage) func(w http.ResponseWriter, r *http.Req
 		metric := core.NewMetricType(chi.URLParam(r, "type"))
 		key := chi.URLParam(r, "key")
 
-		v, err := s.Get(nil, key, metric)
+		v, err := s.Get(r.Context(), key, metric)
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -36,7 +36,7 @@ func MakeGetValueJSONHandler(s core.Storage) func(w http.ResponseWriter, r *http
 
 		mType := core.NewMetricType(req.MType)
 
-		value, err := s.Get(nil, req.ID, mType)
+		value, err := s.Get(r.Context(), req.ID, mType)
 		if err != nil {
 			utils.WriteError(w, err, http.StatusNotFound)
 			return
