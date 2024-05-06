@@ -14,7 +14,7 @@ type MemStorage struct {
 	mu          *sync.Mutex
 }
 
-func (s *MemStorage) SetBatch(_ context.Context, batch core.BaseMetricStorage) error {
+func (s *MemStorage) SetBatch(ctx context.Context, batch core.BaseMetricStorage) error {
 	s.lock()
 	for k, v := range batch.Gauges() {
 		s.SetGauge(k, v)
@@ -26,7 +26,7 @@ func (s *MemStorage) SetBatch(_ context.Context, batch core.BaseMetricStorage) e
 	s.unlock()
 
 	if s.synchronize {
-		err := core.Sync(s, s.backup)
+		err := core.Sync(ctx, s, s.backup)
 		if err != nil {
 			return err
 		}
@@ -44,7 +44,7 @@ func NewMemStorage(backup core.Storage, restore bool, synchronize bool) (*MemSto
 	}
 
 	if restore {
-		if err := core.Sync(backup, s); err != nil {
+		if err := core.Sync(context.Background(), backup, s); err != nil {
 			return nil, err
 		}
 	}
