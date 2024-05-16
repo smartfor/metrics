@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/go-resty/resty/v2"
@@ -9,6 +10,7 @@ import (
 	"github.com/smartfor/metrics/internal/metrics"
 	"github.com/smartfor/metrics/internal/polling"
 	"github.com/smartfor/metrics/internal/utils"
+	"hash"
 	"math/rand"
 	"os"
 	"runtime"
@@ -73,6 +75,8 @@ func (s *Service) send() {
 		err        error
 		body       []byte
 		compressed []byte
+		sign       hash.Hash
+		hexHash    string
 	)
 
 	for _, v := range s.store {
@@ -91,6 +95,11 @@ func (s *Service) send() {
 		return
 	}
 
+	if s.config.Secret != "" {
+		sign = utils.Sign(body, s.config.Secret)
+		hexHash = hex.EncodeToString(sign.Sum(nil))
+	}
+
 	if compressed, err = utils.GzipCompress(body); err != nil {
 		fmt.Fprintln(os.Stderr, "Compressed body error: ", err)
 		fmt.Println("...End send")
@@ -100,12 +109,17 @@ func (s *Service) send() {
 
 	fmt.Println("start send..")
 	_, err = utils.Retry(func() (*resty.Response, error) {
-		return s.client.R().
+		r := s.client.R().
 			SetHeader("Content-Type", "application/json").
 			SetHeader("Accept-Encoding", "gzip").
 			SetHeader("Content-Encoding", "gzip").
-			SetBody(compressed).
-			Post(UpdateBatchURL)
+			SetBody(compressed)
+
+		if s.config.Secret != "" {
+			r = r.SetHeader(utils.AuthHeaderName, hexHash)
+		}
+
+		return r.Post(UpdateBatchURL)
 	}, nil)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Send report error: ", err)
@@ -167,7 +181,6 @@ func (s *Service) updateGaugeMetrics(ms *runtime.MemStats) {
 	s.store["TotalAlloc"] = Metric{Type: core.Gauge, Key: "TotalAlloc", Value: strconv.FormatUint(ms.TotalAlloc, 10)}
 	s.store["RandomValue"] = Metric{Type: core.Gauge, Key: "RandomValue", Value: strconv.FormatFloat(rand.Float64(), 'f', -1, 64)}
 	fmt.Println("end update gauges")
-
 }
 
 func (s *Service) updatePollCounter() {
