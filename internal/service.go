@@ -12,14 +12,12 @@ import (
 	"github.com/smartfor/metrics/internal/utils"
 	"hash"
 	"math/rand"
-	"os"
 	"runtime"
 	"strconv"
 	"sync"
 	"time"
 )
 
-var UpdateURL string = "/update/"
 var UpdateBatchURL string = "/updates/"
 
 type Metric = polling.MetricsModel
@@ -82,14 +80,14 @@ func (s *Service) send() {
 	for _, v := range s.store {
 		metric, err := metrics.FromMetricModel(v)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Extract metric from model error: ", err)
+			fmt.Println("Extract metric from model error: ", err)
 			return
 		}
 		batch = append(batch, *metric)
 	}
 
 	if body, err = json.Marshal(batch); err != nil {
-		fmt.Fprintln(os.Stderr, "Marshalling batch error: ", err)
+		fmt.Println("Marshalling batch error: ", err)
 		fmt.Println("...End send")
 		s.mu.Unlock()
 		return
@@ -101,7 +99,7 @@ func (s *Service) send() {
 	}
 
 	if compressed, err = utils.GzipCompress(body); err != nil {
-		fmt.Fprintln(os.Stderr, "Compressed body error: ", err)
+		fmt.Println("Compressed body error: ", err)
 		fmt.Println("...End send")
 		s.mu.Unlock()
 		return
@@ -122,7 +120,7 @@ func (s *Service) send() {
 		return r.Post(UpdateBatchURL)
 	}, nil)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Send report error: ", err)
+		fmt.Println("End report error: ", err)
 		fmt.Println("...End send")
 		s.mu.Unlock()
 		return
