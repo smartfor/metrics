@@ -20,6 +20,7 @@ type Config struct {
 	FileStoragePath string
 	Restore         bool
 	DatabaseDSN     string
+	Secret          string
 }
 
 func GetConfig() (*Config, error) {
@@ -30,6 +31,7 @@ func GetConfig() (*Config, error) {
 		storeInterval   = flag.Int("i", 300, "metrics store interval")
 		restore         = flag.Bool("r", true, "restore metrics when server starts")
 		dbDsn           = flag.String("d", "", "database DSN")
+		key             = flag.String("k", "", "very very very secret key")
 	)
 	flag.Parse()
 
@@ -47,6 +49,7 @@ func GetConfig() (*Config, error) {
 	utils.TryTakeIntFromEnv("STORE_INTERVAL", storeInterval)
 	utils.TryGetBoolFromEnv("RESTORE", restore)
 	utils.TryTakeStringFromEnv("DATABASE_DSN", dbDsn)
+	utils.TryTakeStringFromEnv("KEY", key)
 
 	return &Config{
 		Addr:            *addr,
@@ -55,5 +58,6 @@ func GetConfig() (*Config, error) {
 		FileStoragePath: *fileStoragePath,
 		Restore:         *restore,
 		DatabaseDSN:     *dbDsn,
+		Secret:          *key,
 	}, nil
 }

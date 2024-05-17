@@ -19,6 +19,7 @@ type Config struct {
 	ReportInterval  time.Duration
 	ResponseTimeout time.Duration
 	HostEndpoint    string
+	Secret          string
 }
 
 func GetConfig() Config {
@@ -26,6 +27,7 @@ func GetConfig() Config {
 	reportInterval := flag.Int("r", 10, "Report Interval")
 	responseTimeout := flag.Int("t", 3, "Response Timeout")
 	hostEndpoint := flag.String("a", "http://localhost:8080", "Host Endpoint")
+	secret := flag.String("k", "", "Secret Key")
 
 	flag.Parse()
 
@@ -43,6 +45,10 @@ func GetConfig() Config {
 		*hostEndpoint = a
 	}
 
+	if k := os.Getenv("KEY"); k != "" {
+		*secret = k
+	}
+
 	if !strings.HasPrefix(*hostEndpoint, HTTPProto) && !strings.HasPrefix(*hostEndpoint, HTTPSProto) {
 		*hostEndpoint = HTTPProto + *hostEndpoint
 	}
@@ -52,5 +58,6 @@ func GetConfig() Config {
 		ReportInterval:  time.Duration(*reportInterval) * time.Second,
 		ResponseTimeout: time.Duration(*responseTimeout) * time.Second,
 		HostEndpoint:    *hostEndpoint,
+		Secret:          *secret,
 	}
 }
