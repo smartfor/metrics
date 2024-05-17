@@ -13,7 +13,8 @@ func MakeAuthMiddleware(secret string) func(h http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			hexHash := r.Header.Get(utils.AuthHeaderName)
 			if hexHash == "" {
-				http.Error(w, "Empty Hash", http.StatusBadRequest)
+				//http.Error(w, "Empty Hash", http.StatusBadRequest)
+				h.ServeHTTP(w, r)
 				return
 			}
 
