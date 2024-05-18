@@ -1,6 +1,7 @@
 package polling
 
 import (
+	"context"
 	"fmt"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
@@ -8,7 +9,15 @@ import (
 	"math/rand"
 	"runtime"
 	"strconv"
+	"sync"
 	"time"
+)
+
+type PollMessageType int
+
+const (
+	PollMainMetricsType     PollMessageType = 0
+	PollAdvancedMetricsType PollMessageType = 1
 )
 
 type MetricStore map[string]MetricsModel
@@ -64,11 +73,96 @@ func PollAdvancedMetrics() (MetricStore, error) {
 	}
 
 	store := make(MetricStore)
+
 	store["TotalMemory"] = MetricsModel{Type: core.Gauge, Key: "TotalMemory", Value: strconv.FormatUint(v.Total, 10)}
 	store["FreeMemory"] = MetricsModel{Type: core.Gauge, Key: "FreeMemory", Value: strconv.FormatUint(v.Free, 10)}
 	for i, c := range cpus {
-		store[fmt.Sprintf("CPUutilization%d", i+1)] = MetricsModel{Type: core.Gauge, Key: fmt.Sprintf("CPUUtilization%d", i+1), Value: strconv.FormatFloat(c, 'f', -1, 64)}
+		store[fmt.Sprintf("CPUutilization%d", i+1)] = MetricsModel{
+			Type:  core.Gauge,
+			Key:   fmt.Sprintf("CPUutilization%d", i+1),
+			Value: strconv.FormatFloat(c, 'f', -1, 64),
+		}
 	}
 
 	return store, nil
+}
+
+func FanInPolling(ctx context.Context, chs ...<-chan PollMessage) <-chan PollMessage {
+	var wg sync.WaitGroup
+	outCh := make(chan PollMessage, 1024)
+
+	output := func(ch <-chan PollMessage) {
+		defer wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+
+			case msg, ok := <-ch:
+				if !ok {
+					return
+				}
+
+				outCh <- msg
+			}
+		}
+	}
+
+	wg.Add(len(chs))
+	for _, ch := range chs {
+		go output(ch)
+	}
+
+	go func() {
+		wg.Wait()
+		close(outCh)
+	}()
+
+	return outCh
+}
+
+func CreateMainPollChannel(ctx context.Context, interval time.Duration) <-chan PollMessage {
+	ch := make(chan PollMessage)
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				close(ch)
+				return
+
+			case <-time.After(interval):
+				ch <- PollMessage{
+					Msg:  PollMainMetrics(),
+					Type: PollMainMetricsType,
+				}
+			}
+		}
+	}()
+
+	return ch
+}
+
+func CreateAdvancedPollChannel(ctx context.Context, interval time.Duration) <-chan PollMessage {
+	ch := make(chan PollMessage)
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				close(ch)
+				return
+
+			case <-time.After(interval):
+				m, err := PollAdvancedMetrics()
+				ch <- PollMessage{
+					Msg:  m,
+					Type: PollAdvancedMetricsType,
+					Err:  err,
+				}
+			}
+		}
+	}()
+
+	return ch
 }

@@ -21,19 +21,6 @@ import (
 
 var UpdateBatchURL string = "/updates/"
 
-type PollMessageType int
-
-const (
-	PollMainMetricsType     PollMessageType = 0
-	PollAdvancedMetricsType PollMessageType = 1
-)
-
-type PollMessage struct {
-	Msg  polling.MetricStore
-	Err  error
-	Type PollMessageType
-}
-
 type Metric = polling.MetricsModel
 
 type Job struct {
@@ -68,50 +55,40 @@ func NewService(cfg *config.Config) Service {
 }
 
 func (s *Service) Run(ctx context.Context) {
-	fmt.Println("Metrics Agent is started...  :::::::::::::::::: ")
-
-	mainPollCh := createMainPollChannel(ctx, s.config.PollInterval)
-	advancedPollCh := createAdvancedPollChannel(ctx, s.config.PollInterval)
-	fanIn := fanInPolling(ctx, mainPollCh, advancedPollCh)
-
-	jobs := make(chan Job, s.config.RateLimit)
-	results := make(chan JobResult, s.config.RateLimit)
+	var (
+		mainPollCh     = polling.CreateMainPollChannel(ctx, s.config.PollInterval)
+		advancedPollCh = polling.CreateAdvancedPollChannel(ctx, s.config.PollInterval)
+		fanIn          = polling.FanInPolling(ctx, mainPollCh, advancedPollCh)
+		jobs           = make(chan Job, s.config.RateLimit)
+		results        = make(chan JobResult, s.config.RateLimit)
+		messages       = make([]polling.PollMessage, 0, 1024)
+		ticker         = time.NewTicker(s.config.ReportInterval)
+	)
 
 	for w := 0; w <= s.config.RateLimit; w++ {
 		go s.worker(jobs, results)
 	}
-
-	messages := make([]PollMessage, 0, 1024)
-	ticker := time.NewTicker(s.config.ReportInterval)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case msg := <-fanIn:
-			fmt.Println("FanIn received:  :::::::::::::::::: ")
-
 			if msg.Err != nil {
-				fmt.Println(" ::::::::::::::::::  Polling error: ", msg.Err)
 				continue
 			}
 
 			messages = append(messages, msg)
 		case result := <-results:
-			fmt.Println(" ::::::::::::::::::  Job result: ")
 			if result.Err != nil {
-				fmt.Println(" ::::::::::::::::::  Job error: ", result.Err)
 				s.pollCounter.Store(result.PoolCounter)
 				continue
 			}
 		case <-ticker.C:
-			fmt.Println(" ::::::::::::::::::  Ticker tick: ")
 			if len(messages) == 0 {
-				fmt.Println("No messages to send  :::::::::::::::::: ")
 				continue
 			}
 
-			fmt.Println("Start sending messages  :::::::::::::::::: ")
 			slices.Reverse(messages)
 			var (
 				store       = make(polling.MetricStore)
@@ -120,14 +97,14 @@ func (s *Service) Run(ctx context.Context) {
 			)
 
 			for _, m := range messages {
-				if m.Type == PollMainMetricsType {
+				if m.Type == polling.PollMainMetricsType {
 					for k, v := range m.Msg {
 						store[k] = v
 					}
 					hasMain = true
 				}
 
-				if m.Type == PollAdvancedMetricsType {
+				if m.Type == polling.PollAdvancedMetricsType {
 					for k, v := range m.Msg {
 						store[k] = v
 					}
@@ -136,28 +113,23 @@ func (s *Service) Run(ctx context.Context) {
 			}
 
 			if !hasMain || !hasAdvanced {
-				fmt.Println("No main or advanced metrics  :::::::::::::::::: ")
 				continue
 			}
 
-			fmt.Println("Reset messages and counter  :::::::::::::::::: ")
 			messages = messages[:0]
 			counter := s.pollCounter.Load()
 			s.pollCounter.Store(0)
 
-			fmt.Println("Send Job  :::::::::::::::::: ")
 			jobs <- Job{
 				Store:       store,
 				PoolCounter: counter,
 			}
 		}
-
 	}
 }
 
 func (s *Service) worker(jobs <-chan Job, results chan<- JobResult) {
 	for j := range jobs {
-		fmt.Println("started job :::::::::::::::::: ")
 		if err := s.send(j.Store, j.PoolCounter); err != nil {
 			results <- JobResult{Err: err, PoolCounter: j.PoolCounter}
 		}
@@ -193,7 +165,6 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 
 	if body, err = json.Marshal(batch); err != nil {
 		fmt.Println("Marshalling batch error: ", err)
-		fmt.Println("...End send")
 		return err
 	}
 
@@ -204,11 +175,9 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 
 	if compressed, err = utils.GzipCompress(body); err != nil {
 		fmt.Println("Compressed body error: ", err)
-		fmt.Println("...End send")
 		return err
 	}
 
-	fmt.Println("start send..")
 	_, err = utils.Retry(func() (*resty.Response, error) {
 		r := s.client.R().
 			SetHeader("Content-Type", "application/json").
@@ -223,93 +192,8 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 		return r.Post(UpdateBatchURL)
 	}, nil)
 	if err != nil {
-		fmt.Println("End report error: ", err)
-		fmt.Println("...End send")
 		return err
 	}
 
 	return nil
-}
-
-func fanInPolling(ctx context.Context, chs ...<-chan PollMessage) <-chan PollMessage {
-	var wg sync.WaitGroup
-	outCh := make(chan PollMessage, 1024)
-
-	output := func(ch <-chan PollMessage) {
-		defer wg.Done()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-
-			case msg, ok := <-ch:
-				if !ok {
-					return
-				}
-
-				fmt.Println("fanInPolling: :::::::::::::::::::: ")
-				outCh <- msg
-			}
-		}
-	}
-
-	wg.Add(len(chs))
-	for _, ch := range chs {
-		go output(ch)
-	}
-
-	go func() {
-		wg.Wait()
-		close(outCh)
-	}()
-
-	return outCh
-}
-
-func createMainPollChannel(ctx context.Context, interval time.Duration) <-chan PollMessage {
-	ch := make(chan PollMessage)
-
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				close(ch)
-				return
-
-			case <-time.After(interval):
-				fmt.Println("Polling main metrics...")
-				ch <- PollMessage{
-					Msg:  polling.PollMainMetrics(),
-					Type: PollMainMetricsType,
-				}
-			}
-		}
-	}()
-
-	return ch
-}
-
-func createAdvancedPollChannel(ctx context.Context, interval time.Duration) <-chan PollMessage {
-	ch := make(chan PollMessage)
-
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				close(ch)
-				return
-
-			case <-time.After(interval):
-				fmt.Println("Polling advanced metrics...")
-				m, err := polling.PollAdvancedMetrics()
-				ch <- PollMessage{
-					Msg:  m,
-					Type: PollAdvancedMetricsType,
-					Err:  err,
-				}
-			}
-		}
-	}()
-
-	return ch
 }
