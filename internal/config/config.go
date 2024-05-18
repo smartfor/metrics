@@ -20,6 +20,7 @@ type Config struct {
 	ResponseTimeout time.Duration
 	HostEndpoint    string
 	Secret          string
+	RateLimit       int
 }
 
 func GetConfig() Config {
@@ -28,6 +29,7 @@ func GetConfig() Config {
 	responseTimeout := flag.Int("t", 3, "Response Timeout")
 	hostEndpoint := flag.String("a", "http://localhost:8080", "Host Endpoint")
 	secret := flag.String("k", "", "Secret Key")
+	rateLimit := flag.Int("l", 1, "Rate limit")
 
 	flag.Parse()
 
@@ -40,6 +42,7 @@ func GetConfig() Config {
 	utils.TryTakeIntFromEnv("POLL_INTERVAL", pollInterval)
 	utils.TryTakeIntFromEnv("REPORT_INTERVAL", reportInterval)
 	utils.TryTakeIntFromEnv("RESPONSE_TIMEOUT", responseTimeout)
+	utils.TryTakeIntFromEnv("RATE_LIMIT", rateLimit)
 
 	if a := os.Getenv("ADDRESS"); a != "" {
 		*hostEndpoint = a

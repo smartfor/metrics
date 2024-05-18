@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/smartfor/metrics/internal"
 	"github.com/smartfor/metrics/internal/config"
@@ -11,5 +12,5 @@ func main() {
 	fmt.Printf("Agent config :: \n %v\n", cfg)
 
 	s := internal.NewService(&cfg)
-	s.Run()
+	s.Run(context.Background())
 }
