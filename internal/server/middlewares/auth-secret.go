@@ -3,9 +3,10 @@ package middlewares
 import (
 	"bytes"
 	"encoding/hex"
-	"github.com/smartfor/metrics/internal/utils"
 	"io"
 	"net/http"
+
+	"github.com/smartfor/metrics/internal/utils"
 )
 
 func MakeAuthMiddleware(secret string) func(h http.Handler) http.Handler {

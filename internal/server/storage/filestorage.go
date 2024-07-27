@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/smartfor/metrics/internal/core"
-	"github.com/smartfor/metrics/internal/server/utils"
-	utils2 "github.com/smartfor/metrics/internal/utils"
 	"io"
 	"os"
 	"sync"
+
+	"github.com/smartfor/metrics/internal/core"
+	"github.com/smartfor/metrics/internal/server/utils"
+	utils2 "github.com/smartfor/metrics/internal/utils"
 )
 
 type metrics struct {

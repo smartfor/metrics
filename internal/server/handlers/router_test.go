@@ -1,16 +1,17 @@
 package handlers
 
 import (
-	"github.com/smartfor/metrics/internal/logger"
-	"github.com/smartfor/metrics/internal/server/storage"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/smartfor/metrics/internal/logger"
+	"github.com/smartfor/metrics/internal/server/storage"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func testRequest(

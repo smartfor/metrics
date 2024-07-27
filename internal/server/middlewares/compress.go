@@ -1,9 +1,10 @@
 package middlewares
 
 import (
-	"github.com/smartfor/metrics/internal/utils"
 	"net/http"
 	"strings"
+
+	"github.com/smartfor/metrics/internal/utils"
 )
 
 func GzipMiddleware(h http.Handler) http.Handler {

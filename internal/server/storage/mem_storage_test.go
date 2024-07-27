@@ -2,10 +2,11 @@ package storage
 
 import (
 	"context"
+	"testing"
+
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestMemStorage_Get(t *testing.T) {

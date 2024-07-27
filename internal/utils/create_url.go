@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/polling"
 )

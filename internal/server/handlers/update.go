@@ -2,11 +2,12 @@ package handlers
 
 import (
 	"encoding/json"
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/metrics"
 	"github.com/smartfor/metrics/internal/server/utils"
-	"net/http"
 )
 
 func MakeUpdateHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {
