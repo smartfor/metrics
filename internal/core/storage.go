@@ -3,8 +3,9 @@ package core
 import (
 	"context"
 	"errors"
-	"github.com/smartfor/metrics/internal/server/utils"
 	"io"
+
+	"github.com/smartfor/metrics/internal/server/utils"
 )
 
 var (

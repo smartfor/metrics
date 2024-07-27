@@ -1,8 +1,9 @@
 package handlers
 
 import (
-	"github.com/smartfor/metrics/internal/core"
 	"net/http"
+
+	"github.com/smartfor/metrics/internal/core"
 )
 
 func MakePingHandler(s core.Storage) http.HandlerFunc {

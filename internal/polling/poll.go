@@ -3,14 +3,15 @@ package polling
 import (
 	"context"
 	"fmt"
-	"github.com/shirou/gopsutil/v3/cpu"
-	"github.com/shirou/gopsutil/v3/mem"
-	"github.com/smartfor/metrics/internal/core"
 	"math/rand"
 	"runtime"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
+	"github.com/smartfor/metrics/internal/core"
 )
 
 type PollMessageType int

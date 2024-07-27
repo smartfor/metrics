@@ -4,8 +4,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/smartfor/metrics/internal/utils"
 	"time"
+
+	"github.com/smartfor/metrics/internal/utils"
 )
 
 var (

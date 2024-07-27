@@ -3,10 +3,11 @@ package config
 import (
 	"flag"
 	"fmt"
-	"github.com/smartfor/metrics/internal/utils"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/smartfor/metrics/internal/utils"
 )
 
 const (

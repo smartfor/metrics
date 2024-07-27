@@ -2,11 +2,12 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/smartfor/metrics/internal/core"
-	"github.com/smartfor/metrics/internal/server/utils"
 	"log"
 	"net/http"
 	"slices"
+
+	"github.com/smartfor/metrics/internal/core"
+	"github.com/smartfor/metrics/internal/server/utils"
 )
 
 func MakeGetMetricsPageHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {

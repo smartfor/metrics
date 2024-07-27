@@ -2,9 +2,10 @@ package storage
 
 import (
 	"context"
+	"sync"
+
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/server/utils"
-	"sync"
 )
 
 type MemStorage struct {
