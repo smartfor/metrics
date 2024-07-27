@@ -9,3 +9,9 @@ type MetricsModel struct {
 	Key   string
 	Value string
 }
+
+type PollMessage struct {
+	Msg  MetricStore
+	Err  error
+	Type PollMessageType
+}
