@@ -9,6 +9,7 @@ import (
 	"github.com/smartfor/metrics/internal/utils"
 )
 
+// MakeAuthMiddleware - middleware для проверки ключа аутентификации
 func MakeAuthMiddleware(secret string) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {

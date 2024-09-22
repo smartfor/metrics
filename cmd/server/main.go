@@ -1,3 +1,4 @@
+// Сервер хранения метрик
 package main
 
 import (

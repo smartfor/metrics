@@ -10,6 +10,7 @@ import (
 	"github.com/smartfor/metrics/internal/server/utils"
 )
 
+// MakeGetValueHandler создает хендлер для получения значения метрики в формате строки
 func MakeGetValueHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metric := core.NewMetricType(chi.URLParam(r, "type"))
@@ -25,6 +26,7 @@ func MakeGetValueHandler(s core.Storage) func(w http.ResponseWriter, r *http.Req
 	}
 }
 
+// MakeGetValueHandler создает хендлер для получения значения метрики в формате JSON
 func MakeGetValueJSONHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

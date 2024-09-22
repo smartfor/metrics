@@ -11,10 +11,13 @@ import (
 	"github.com/smartfor/metrics/internal/server/utils"
 )
 
+// PostgresStorage - тип для хранения состояния метрик в БД Postgres
 type PostgresStorage struct {
 	pool *pgxpool.Pool
 }
 
+// NewPostgresStorage - конструктор для создания PostgresStorage,
+// где dsn - это строка подключения к БД.
 func NewPostgresStorage(ctx context.Context, dsn string) (*PostgresStorage, error) {
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {

@@ -1,3 +1,4 @@
+// Модуль config отвечает за определение конфигурации сервера
 package config
 
 import (
@@ -10,20 +11,33 @@ import (
 )
 
 var (
-	ErrInvalidAddress   = errors.New("invalid address")
+	// ErrInvalidAddress Ошибка при некорректном формате адреса сервера передаваемом при зауске сервера
+	ErrInvalidAddress = errors.New("invalid address")
+
+	// ErrUnknownArguments Ошибка при передаче несуществующиего параметра конфигурации
 	ErrUnknownArguments = errors.New(fmt.Sprint("unknown flags:", flag.Args()))
 )
 
+// Config Конфигурация сервера
 type Config struct {
-	Addr            string
-	LogLevel        string
-	StoreInterval   time.Duration
+	// Addr адрес сервера
+	Addr string
+	// LogLevel уровень логирования
+	LogLevel string
+	// StoreInterval временной интервал, через который сервер сохраняет состояние метрик в постоянное хранилище
+	StoreInterval time.Duration
+	// FileStoragePath путь к файловому хранилищу метрик
 	FileStoragePath string
-	Restore         bool
-	DatabaseDSN     string
-	Secret          string
+	// Restore флаг включающий воостановление метрик в память после старта сервера
+	Restore bool
+	// DatabaseDSN строка подключения к базе данных хранения метрик
+	DatabaseDSN string
+	// Secret секретный код для создания и идентификации ключа аутентификации клиентов
+	Secret string
 }
 
+// GetConfig Функция для получения конфигурации сервера.
+// Если параметры не найдены в переменных окружения то берутся значения из флагов либо значения по умолчанию
 func GetConfig() (*Config, error) {
 	var (
 		addr            = flag.String("a", ":8080", "address and port to run server")

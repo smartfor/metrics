@@ -1,3 +1,4 @@
+// Пакет с хендлерами сервера
 package handlers
 
 import (
@@ -8,6 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// Router создает роутер сервера со всем обработчиками ендпоинтов включая ендпоинты профилирования
 func Router(s core.Storage, logger *zap.Logger, secret string) chi.Router {
 	r := chi.NewRouter()
 

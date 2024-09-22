@@ -10,6 +10,7 @@ import (
 	"github.com/smartfor/metrics/internal/server/utils"
 )
 
+// MakeUpdateHandler создает хендлер для обновления метрики в строковом формате
 func MakeUpdateHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metric := core.NewMetricType(chi.URLParam(r, "type"))
@@ -26,6 +27,7 @@ func MakeUpdateHandler(s core.Storage) func(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+// MakeUpdateJSONHandler создает хендлер для обновления метрики в формате JSON
 func MakeUpdateJSONHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
