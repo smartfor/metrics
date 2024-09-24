@@ -26,7 +26,7 @@ func MakeGetValueHandler(s core.Storage) func(w http.ResponseWriter, r *http.Req
 	}
 }
 
-// MakeGetValueHandler создает хендлер для получения значения метрики в формате JSON
+// MakeGetValueJSONHandler создает хендлер для получения значения метрики в формате JSON
 func MakeGetValueJSONHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
