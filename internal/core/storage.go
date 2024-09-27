@@ -3,8 +3,9 @@ package core
 import (
 	"context"
 	"errors"
-	"github.com/smartfor/metrics/internal/server/utils"
 	"io"
+
+	"github.com/smartfor/metrics/internal/server/utils"
 )
 
 var (
@@ -13,12 +14,18 @@ var (
 	ErrNotFound          = errors.New("not found")
 )
 
+// Storage - интерфейс хранилища метрик.
 type Storage interface {
 	io.Closer
+	// Set - запись метрики в хранилище.
 	Set(ctx context.Context, key string, value string, metric MetricType) error
+	// SetBatch - запись в хранилище пачки метрик.
 	SetBatch(ctx context.Context, batch BaseMetricStorage) error
+	// Get - получение метрики из хранилища.
 	Get(ctx context.Context, key string, metric MetricType) (string, error)
+	// GetAll - получение всех метрик из хранилища.
 	GetAll(ctx context.Context) (BaseMetricStorage, error)
+	// Ping - проверка доступности хранилища.
 	Ping(ctx context.Context) error
 }
 
@@ -88,6 +95,7 @@ func (bs *BaseMetricStorage) SetCounter(key string, delta int64) {
 	bs.counters[key] += delta
 }
 
+// Sync синхронизирует данные двух хранилищ.
 func Sync(ctx context.Context, source Storage, target Storage) error {
 	main, err := source.GetAll(ctx)
 	if err != nil {

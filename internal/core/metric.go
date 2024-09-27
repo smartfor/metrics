@@ -1,11 +1,14 @@
 package core
 
+// MetricType - тип метрики
 type MetricType string
 
 const (
-	Gauge   MetricType = "gauge"
+	// Gauge - обычное значение метрики, которое перезаписывается при каждом обновлении
+	Gauge MetricType = "gauge"
+	// Counter - значение, которое при установке накапливает свое значение
 	Counter MetricType = "counter"
-
+	// Unknown - Неизвестный тип метрики.
 	Unknown MetricType = "unknown"
 )
 

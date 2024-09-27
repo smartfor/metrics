@@ -1,15 +1,17 @@
+// Модуль опредялет основные типы хранения метрик
 package storage
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/smartfor/metrics/internal/core"
-	"github.com/smartfor/metrics/internal/server/utils"
-	utils2 "github.com/smartfor/metrics/internal/utils"
 	"io"
 	"os"
 	"sync"
+
+	"github.com/smartfor/metrics/internal/core"
+	"github.com/smartfor/metrics/internal/server/utils"
+	utils2 "github.com/smartfor/metrics/internal/utils"
 )
 
 type metrics struct {
@@ -31,12 +33,15 @@ func (metrics *metrics) ToBaseStorage() *core.BaseMetricStorage {
 	return &s
 }
 
+// FileStorage - тип для хранения состояния метрик в файле
 type FileStorage struct {
 	file    *os.File
 	mu      *sync.Mutex
 	encoder *json.Encoder
 }
 
+// NewFileStorage - конструктор для создания файлового хранилища
+// где filepath - это путь к файлу в котором будут храниться метрики.
 func NewFileStorage(filepath string) (*FileStorage, error) {
 	file, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {

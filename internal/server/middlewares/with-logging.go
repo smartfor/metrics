@@ -2,10 +2,11 @@ package middlewares
 
 import (
 	"bytes"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 type (
@@ -35,6 +36,7 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 	r.responseData.status = statusCode
 }
 
+// MakeLoggerMiddleware - middleware для логирования основной информации запросов и ответов
 func MakeLoggerMiddleware(logger *zap.Logger) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {

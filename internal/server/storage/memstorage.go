@@ -2,16 +2,38 @@ package storage
 
 import (
 	"context"
+	"sync"
+
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/server/utils"
-	"sync"
 )
 
+// MemStorage - тип для хранения метрик в памяти
 type MemStorage struct {
 	core.BaseMetricStorage
 	backup      core.Storage
 	synchronize bool
 	mu          *sync.Mutex
+}
+
+// NewMemStorage - конструктор для создания Memstorage,
+// где backup - это сохраненное ранее состояние метрик которое нужно прогрузить в память если restore == true,
+// а synchronize - флаг определяющий нужно ли сбрасывать данные в backup после каждого изменения метрик.
+func NewMemStorage(backup core.Storage, restore bool, synchronize bool) (*MemStorage, error) {
+	s := &MemStorage{
+		BaseMetricStorage: core.NewBaseMetricStorage(),
+		backup:            backup,
+		synchronize:       synchronize,
+		mu:                &sync.Mutex{},
+	}
+
+	if restore {
+		if err := core.Sync(context.Background(), backup, s); err != nil {
+			return nil, err
+		}
+	}
+
+	return s, nil
 }
 
 func (s *MemStorage) SetBatch(ctx context.Context, batch core.BaseMetricStorage) error {
@@ -33,23 +55,6 @@ func (s *MemStorage) SetBatch(ctx context.Context, batch core.BaseMetricStorage)
 	}
 
 	return nil
-}
-
-func NewMemStorage(backup core.Storage, restore bool, synchronize bool) (*MemStorage, error) {
-	s := &MemStorage{
-		BaseMetricStorage: core.NewBaseMetricStorage(),
-		backup:            backup,
-		synchronize:       synchronize,
-		mu:                &sync.Mutex{},
-	}
-
-	if restore {
-		if err := core.Sync(context.Background(), backup, s); err != nil {
-			return nil, err
-		}
-	}
-
-	return s, nil
 }
 
 func (s *MemStorage) Set(ctx context.Context, key string, value string, metric core.MetricType) error {

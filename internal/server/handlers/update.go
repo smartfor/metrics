@@ -2,13 +2,15 @@ package handlers
 
 import (
 	"encoding/json"
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/metrics"
 	"github.com/smartfor/metrics/internal/server/utils"
-	"net/http"
 )
 
+// MakeUpdateHandler создает хендлер для обновления метрики в строковом формате
 func MakeUpdateHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metric := core.NewMetricType(chi.URLParam(r, "type"))
@@ -25,6 +27,7 @@ func MakeUpdateHandler(s core.Storage) func(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+// MakeUpdateJSONHandler создает хендлер для обновления метрики в формате JSON
 func MakeUpdateJSONHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

@@ -1,12 +1,15 @@
+// Пакет с хендлерами сервера
 package handlers
 
 import (
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/server/middlewares"
 	"go.uber.org/zap"
 )
 
+// Router создает роутер сервера со всем обработчиками ендпоинтов включая ендпоинты профилирования
 func Router(s core.Storage, logger *zap.Logger, secret string) chi.Router {
 	r := chi.NewRouter()
 
@@ -19,6 +22,8 @@ func Router(s core.Storage, logger *zap.Logger, secret string) chi.Router {
 
 	r.Post("/value/", MakeGetValueJSONHandler(s))
 	r.Get("/value/{type}/{key}", MakeGetValueHandler(s))
+
+	r.Mount("/debug", middleware.Profiler())
 
 	r.Group(func(r chi.Router) {
 		if secret != "" {

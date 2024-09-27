@@ -1,9 +1,17 @@
+// Сервер хранения метрик
 package main
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/logger"
@@ -11,12 +19,6 @@ import (
 	"github.com/smartfor/metrics/internal/server/handlers"
 	"github.com/smartfor/metrics/internal/server/storage"
 	"go.uber.org/zap"
-	"log"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 )
 
 func main() {

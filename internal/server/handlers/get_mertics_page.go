@@ -2,13 +2,15 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/smartfor/metrics/internal/core"
-	"github.com/smartfor/metrics/internal/server/utils"
 	"log"
 	"net/http"
 	"slices"
+
+	"github.com/smartfor/metrics/internal/core"
+	"github.com/smartfor/metrics/internal/server/utils"
 )
 
+// MakeGetMetricsPageHandler создает хендлер для получение html страницы текущего состояния метрик
 func MakeGetMetricsPageHandler(s core.Storage) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m, err := s.GetAll(r.Context())

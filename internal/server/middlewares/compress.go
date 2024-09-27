@@ -1,11 +1,13 @@
 package middlewares
 
 import (
-	"github.com/smartfor/metrics/internal/utils"
 	"net/http"
 	"strings"
+
+	"github.com/smartfor/metrics/internal/utils"
 )
 
+// GzipMiddleware - middleware для работы обработчиков с gzip-компрессией
 func GzipMiddleware(h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		// по умолчанию устанавливаем оригинальный http.ResponseWriter как тот,
