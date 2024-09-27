@@ -7,13 +7,11 @@ import (
 	"github.com/smartfor/metrics/internal/metrics"
 )
 
-var (
-	client = resty.
+func ExampleMakeGetValueJSONHandler() {
+	client := resty.
 		New().
 		SetBaseURL("localhost:3000")
-)
 
-func ExampleMakeGetValueJSONHandler() {
 	req := metrics.Metrics{
 		ID:    "Alloc",
 		MType: "gauge",
@@ -33,6 +31,10 @@ func ExampleMakeGetValueJSONHandler() {
 }
 
 func ExampleMakeGetValueHandler() {
+	client := resty.
+		New().
+		SetBaseURL("localhost:3000")
+
 	resp, _ := client.R().
 		Get("/value/gauge/alloc")
 
@@ -42,6 +44,10 @@ func ExampleMakeGetValueHandler() {
 }
 
 func ExampleMakeUpdateHandler() {
+	client := resty.
+		New().
+		SetBaseURL("localhost:3000")
+
 	resp, _ := client.R().
 		SetBody(nil).
 		Post("/update/gauge/alloc/12332122.12")
@@ -52,6 +58,10 @@ func ExampleMakeUpdateHandler() {
 }
 
 func ExampleMakeUpdateJSONHandler() {
+	client := resty.
+		New().
+		SetBaseURL("localhost:3000")
+
 	value := 12332122.12
 	req := metrics.Metrics{
 		ID:    "Alloc",
@@ -70,6 +80,10 @@ func ExampleMakeUpdateJSONHandler() {
 }
 
 func ExampleMakeBatchUpdateJSONHandler() {
+	client := resty.
+		New().
+		SetBaseURL("localhost:3000")
+
 	gauge := 123123.12
 	counter := int64(10)
 	req := []metrics.Metrics{
