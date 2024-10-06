@@ -1,4 +1,4 @@
-// Пакет с хендлерами сервера
+// Package handlers пакет с хендлерами сервера
 package handlers
 
 import (

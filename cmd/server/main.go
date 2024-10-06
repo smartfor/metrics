@@ -77,8 +77,9 @@ func main() {
 		}
 	}
 	server := &http.Server{
-		Addr:    cfg.Addr,
-		Handler: router,
+		Addr:              cfg.Addr,
+		ReadHeaderTimeout: 10 * time.Second,
+		Handler:           router,
 	}
 
 	done := make(chan os.Signal, 1)

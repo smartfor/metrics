@@ -1,3 +1,4 @@
+// Package config содержит структуру конфигурации и функцию для ее получения.
 package config
 
 import (
@@ -16,12 +17,12 @@ const (
 )
 
 type Config struct {
-	PollInterval    time.Duration
-	ReportInterval  time.Duration
-	ResponseTimeout time.Duration
 	HostEndpoint    string
 	Secret          string
 	RateLimit       int
+	PollInterval    time.Duration
+	ReportInterval  time.Duration
+	ResponseTimeout time.Duration
 }
 
 func GetConfig() Config {

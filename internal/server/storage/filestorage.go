@@ -1,4 +1,4 @@
-// Модуль опредялет основные типы хранения метрик
+// Package storage Модуль опредялет основные типы хранения метрик
 package storage
 
 import (
@@ -135,20 +135,20 @@ func (f *FileStorage) Get(ctx context.Context, key string, metric core.MetricTyp
 	f.lock()
 	defer f.unlock()
 
-	var metrics metrics
-	if err := f.read(&metrics); err != nil {
+	var lMetrics metrics
+	if err := f.read(&lMetrics); err != nil {
 		return "", err
 	}
 
 	switch metric {
 	case core.Gauge:
-		if v, ok := metrics.Gauges[key]; ok {
+		if v, ok := lMetrics.Gauges[key]; ok {
 			return utils.GaugeAsString(v), nil
 		} else {
 			return "", core.ErrNotFound
 		}
 	case core.Counter:
-		if v, ok := metrics.Counters[key]; ok {
+		if v, ok := lMetrics.Counters[key]; ok {
 			return utils.CounterAsString(v), nil
 		} else {
 			return "", core.ErrNotFound
@@ -162,12 +162,12 @@ func (f *FileStorage) GetAll(context.Context) (core.BaseMetricStorage, error) {
 	f.lock()
 	defer f.unlock()
 
-	var metrics metrics
-	if err := f.read(&metrics); err != nil {
+	var lMetrics metrics
+	if err := f.read(&lMetrics); err != nil {
 		return core.NewBaseMetricStorage(), err
 	}
 
-	return *metrics.ToBaseStorage(), nil
+	return *lMetrics.ToBaseStorage(), nil
 }
 
 func (f *FileStorage) write(metrics *metrics) error {

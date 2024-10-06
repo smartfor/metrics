@@ -43,7 +43,7 @@ func GzipMiddleware(h http.Handler) http.Handler {
 			defer cr.Close()
 		}
 
-		//передаём управление хендлеру
+		// передаём управление хендлеру
 		h.ServeHTTP(ow, r)
 	}
 

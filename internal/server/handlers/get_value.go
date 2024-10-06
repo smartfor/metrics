@@ -22,7 +22,10 @@ func MakeGetValueHandler(s core.Storage) func(w http.ResponseWriter, r *http.Req
 			return
 		}
 
-		w.Write([]byte(v))
+		_, err = w.Write([]byte(v))
+		if err != nil {
+			return
+		}
 	}
 }
 
@@ -48,7 +51,8 @@ func MakeGetValueJSONHandler(s core.Storage) func(w http.ResponseWriter, r *http
 		switch mType {
 		case core.Counter:
 			{
-				v, err := utils.CounterFromString(value)
+				var v int64
+				v, err = utils.CounterFromString(value)
 				if err != nil {
 					utils.WriteError(w, err, http.StatusInternalServerError)
 					return
@@ -57,7 +61,8 @@ func MakeGetValueJSONHandler(s core.Storage) func(w http.ResponseWriter, r *http
 			}
 		case core.Gauge:
 			{
-				v, err := utils.GaugeFromString(value)
+				var v float64
+				v, err = utils.GaugeFromString(value)
 				if err != nil {
 					utils.WriteError(w, err, http.StatusInternalServerError)
 					return

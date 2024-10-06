@@ -7,7 +7,11 @@ import (
 
 func WriteError(w http.ResponseWriter, error error, statusCode int) {
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(map[string]string{
+	err := json.NewEncoder(w).Encode(map[string]string{
 		"error": error.Error(),
 	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }

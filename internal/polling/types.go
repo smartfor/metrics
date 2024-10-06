@@ -1,3 +1,4 @@
+// Package polling содержит логику сбора метрик.
 package polling
 
 import (

@@ -7,12 +7,12 @@ import (
 )
 
 type RetryConfig struct {
-	// Количество попыток
-	Attempts int
 	// Функция увеличения задержки для следующей попытки
 	IncrementDelayFn func(prev time.Duration) time.Duration
 	// Стартовая задержка
 	StartDelay time.Duration
+	// Количество попыток
+	Attempts int
 }
 
 type IncrementDelayFn = func(prev time.Duration) time.Duration

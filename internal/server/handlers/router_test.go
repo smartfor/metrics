@@ -35,9 +35,9 @@ func testRequest(
 
 func TestRouter(t *testing.T) {
 	type want struct {
-		code        int
 		response    string
 		contentType string
+		code        int
 	}
 
 	zlog, err := logger.MakeLogger("Info")
