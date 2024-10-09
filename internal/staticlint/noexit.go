@@ -24,7 +24,7 @@ func runNoExit(pass *analysis.Pass) (interface{}, error) {
 		for _, decl := range file.Decls {
 			if fn, ok := decl.(*ast.FuncDecl); ok {
 				if fn.Name.Name != "main" {
-					return nil, nil
+					continue
 				}
 
 				checkMainFunction(pass, fn)
@@ -36,19 +36,18 @@ func runNoExit(pass *analysis.Pass) (interface{}, error) {
 }
 
 func checkMainFunction(pass *analysis.Pass, fn *ast.FuncDecl) {
-	for _, stmt := range fn.Body.List {
-		if call, ok := stmt.(*ast.ExprStmt); ok {
-			if expr, ok := call.X.(*ast.CallExpr); ok {
-				if sel, ok := expr.Fun.(*ast.SelectorExpr); ok {
-					if sel.Sel.Name == "Exit" {
-						pass.Reportf(
-							call.Pos(),
-							failMessage,
-						)
-					}
+	ast.Inspect(fn, func(node ast.Node) bool {
+		if call, ok := node.(*ast.CallExpr); ok {
+			if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+				if sel.Sel.Name == "Exit" {
+					pass.Reportf(
+						call.Pos(),
+						failMessage,
+					)
 				}
 			}
 		}
-	}
 
+		return true
+	})
 }
