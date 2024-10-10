@@ -35,7 +35,7 @@ func NewPostgresStorage(ctx context.Context, dsn string) (*PostgresStorage, erro
 	return &s, nil
 }
 
-// Создает таблицы gauges и counters в базе данных
+// Initialize Создает таблицы gauges и counters в базе данных
 func (s *PostgresStorage) Initialize() error {
 	return s.initialize()
 }

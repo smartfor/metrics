@@ -13,11 +13,12 @@ const (
 )
 
 func NewMetricType(str string) MetricType {
-	if str == "gauge" {
+	switch str {
+	case "gauge":
 		return Gauge
-	} else if str == "counter" {
+	case "counter":
 		return Counter
-	} else {
+	default:
 		return Unknown
 	}
 }

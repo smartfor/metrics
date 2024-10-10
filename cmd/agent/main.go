@@ -6,10 +6,13 @@ import (
 	"fmt"
 
 	"github.com/smartfor/metrics/internal"
+	"github.com/smartfor/metrics/internal/build"
 	"github.com/smartfor/metrics/internal/config"
 )
 
 func main() {
+	build.PrintGlobalVars()
+
 	cfg := config.GetConfig()
 	fmt.Printf("Agent config :: \n %v\n", cfg)
 

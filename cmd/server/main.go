@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/smartfor/metrics/internal/build"
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/logger"
 	"github.com/smartfor/metrics/internal/server/config"
@@ -22,6 +23,8 @@ import (
 )
 
 func main() {
+	build.PrintGlobalVars()
+
 	cfg, err := config.GetConfig()
 	if err != nil {
 		log.Fatalf("Error loading configuration: %s", err)
@@ -77,8 +80,9 @@ func main() {
 		}
 	}
 	server := &http.Server{
-		Addr:    cfg.Addr,
-		Handler: router,
+		Addr:              cfg.Addr,
+		ReadHeaderTimeout: 10 * time.Second,
+		Handler:           router,
 	}
 
 	done := make(chan os.Signal, 1)

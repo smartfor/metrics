@@ -88,7 +88,7 @@ func GzipCompress(data []byte) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-// Decompress распаковывает слайс байт.
+// GzipDecompress Decompress распаковывает слайс байт.
 func GzipDecompress(data []byte) ([]byte, error) {
 	// переменная r будет читать входящие данные и распаковывать их
 	r, err := gzip.NewReader(bytes.NewReader(data))

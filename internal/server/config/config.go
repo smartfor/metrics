@@ -1,4 +1,4 @@
-// Модуль config отвечает за определение конфигурации сервера
+// Package config Модуль config отвечает за определение конфигурации сервера
 package config
 
 import (
@@ -24,16 +24,16 @@ type Config struct {
 	Addr string
 	// LogLevel уровень логирования
 	LogLevel string
-	// StoreInterval временной интервал, через который сервер сохраняет состояние метрик в постоянное хранилище
-	StoreInterval time.Duration
 	// FileStoragePath путь к файловому хранилищу метрик
 	FileStoragePath string
-	// Restore флаг включающий воостановление метрик в память после старта сервера
-	Restore bool
 	// DatabaseDSN строка подключения к базе данных хранения метрик
 	DatabaseDSN string
 	// Secret секретный код для создания и идентификации ключа аутентификации клиентов
 	Secret string
+	// StoreInterval временной интервал, через который сервер сохраняет состояние метрик в постоянное хранилище
+	StoreInterval time.Duration
+	// Restore флаг включающий воостановление метрик в память после старта сервера
+	Restore bool
 }
 
 // GetConfig Функция для получения конфигурации сервера.

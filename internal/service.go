@@ -1,3 +1,4 @@
+// Package internal содержит всю логику работы с метриками.
 package internal
 
 import (
@@ -35,9 +36,9 @@ type JobResult struct {
 }
 
 type Service struct {
-	config      config.Config
 	client      *resty.Client
 	mu          *sync.Mutex
+	config      config.Config
 	pollCounter atomic.Int64
 }
 
@@ -147,6 +148,7 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 		compressed []byte
 		sign       hash.Hash
 		hexHash    string
+		metric     *metrics.Metrics
 	)
 
 	store["PoolCount"] = polling.MetricsModel{
@@ -156,7 +158,7 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 	}
 
 	for _, v := range store {
-		metric, err := metrics.FromMetricModel(v)
+		metric, err = metrics.FromMetricModel(v)
 		if err != nil {
 			fmt.Println("Extract metric from model error: ", err)
 			return err

@@ -11,8 +11,8 @@ import (
 
 type (
 	responseData struct {
-		status int
 		body   interface{}
+		status int
 		size   int
 	}
 

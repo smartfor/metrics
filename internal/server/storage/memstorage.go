@@ -11,9 +11,9 @@ import (
 // MemStorage - тип для хранения метрик в памяти
 type MemStorage struct {
 	core.BaseMetricStorage
+	mu          *sync.Mutex
 	backup      core.Storage
 	synchronize bool
-	mu          *sync.Mutex
 }
 
 // NewMemStorage - конструктор для создания Memstorage,

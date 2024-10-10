@@ -2,8 +2,9 @@ package polling
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"runtime"
 	"strconv"
 	"sync"
@@ -28,6 +29,14 @@ func PollMainMetrics() MetricStore {
 
 	var ms = runtime.MemStats{}
 	runtime.ReadMemStats(&ms)
+
+	var randomValue float64
+	nBig, err := rand.Int(rand.Reader, big.NewInt(100))
+	if err != nil {
+		randomValue = 0
+	} else {
+		randomValue, _ = nBig.Float64()
+	}
 
 	store["Alloc"] = MetricsModel{Type: core.Gauge, Key: "Alloc", Value: strconv.FormatUint(ms.Alloc, 10)}
 	store["BuckHashSys"] = MetricsModel{Type: core.Gauge, Key: "BuckHashSys", Value: strconv.FormatUint(ms.BuckHashSys, 10)}
@@ -56,7 +65,7 @@ func PollMainMetrics() MetricStore {
 	store["StackSys"] = MetricsModel{Type: core.Gauge, Key: "StackSys", Value: strconv.FormatUint(ms.StackSys, 10)}
 	store["Sys"] = MetricsModel{Type: core.Gauge, Key: "Sys", Value: strconv.FormatUint(ms.Sys, 10)}
 	store["TotalAlloc"] = MetricsModel{Type: core.Gauge, Key: "TotalAlloc", Value: strconv.FormatUint(ms.TotalAlloc, 10)}
-	store["RandomValue"] = MetricsModel{Type: core.Gauge, Key: "RandomValue", Value: strconv.FormatFloat(rand.Float64(), 'f', -1, 64)}
+	store["RandomValue"] = MetricsModel{Type: core.Gauge, Key: "RandomValue", Value: strconv.FormatFloat(randomValue, 'f', -1, 64)}
 
 	return store
 }

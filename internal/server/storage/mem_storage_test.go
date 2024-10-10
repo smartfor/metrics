@@ -11,10 +11,10 @@ import (
 
 func TestMemStorage_Get(t *testing.T) {
 	tests := []struct {
-		name       string
-		metricType core.MetricType
-		key        string
 		expected   interface{}
+		name       string
+		key        string
+		metricType core.MetricType
 		wantErr    bool
 	}{
 		{
@@ -81,11 +81,11 @@ func TestMemStorage_Get(t *testing.T) {
 
 func TestMemStorage_Set(t *testing.T) {
 	tests := []struct {
+		expected   interface{}
 		name       string
-		metricType core.MetricType
 		key        string
 		value      string
-		expected   interface{}
+		metricType core.MetricType
 		wantErr    bool
 	}{
 		{
