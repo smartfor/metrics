@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/smartfor/metrics/internal/build"
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/logger"
 	"github.com/smartfor/metrics/internal/server/config"
@@ -21,14 +22,8 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	buildVersion string
-	buildDate    string
-	buildCommit  string
-)
-
 func main() {
-	printGlobalVars()
+	build.PrintGlobalVars()
 
 	cfg, err := config.GetConfig()
 	if err != nil {
@@ -116,24 +111,4 @@ func main() {
 			zlog.Fatal("Memstorage Close Failed: ", zap.Error(err))
 		}
 	}
-}
-
-func printGlobalVars() {
-	const NA = "N/A"
-
-	if buildVersion == "" {
-		buildVersion = NA
-	}
-
-	if buildDate == "" {
-		buildDate = NA
-	}
-
-	if buildCommit == "" {
-		buildCommit = NA
-	}
-
-	fmt.Printf("Build version: %s\n", buildVersion)
-	fmt.Printf("Build date: %s\n", buildDate)
-	fmt.Printf("Build commit: %s\n", buildCommit)
 }
