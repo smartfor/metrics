@@ -40,9 +40,10 @@ type Service struct {
 	mu          *sync.Mutex
 	config      config.Config
 	pollCounter atomic.Int64
+	privateKey  []byte
 }
 
-func NewService(cfg *config.Config) Service {
+func NewService(cfg *config.Config, privateKey []byte) Service {
 	client := resty.
 		New().
 		SetBaseURL(cfg.HostEndpoint).
@@ -50,9 +51,10 @@ func NewService(cfg *config.Config) Service {
 		SetTimeout(cfg.ResponseTimeout)
 
 	return Service{
-		config: *cfg,
-		client: client,
-		mu:     &sync.Mutex{},
+		config:     *cfg,
+		client:     client,
+		privateKey: privateKey,
+		mu:         &sync.Mutex{},
 	}
 }
 
@@ -145,6 +147,7 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 		batch      []metrics.Metrics
 		err        error
 		body       []byte
+		key        []byte
 		compressed []byte
 		sign       hash.Hash
 		hexHash    string
@@ -176,6 +179,16 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 		hexHash = hex.EncodeToString(sign.Sum(nil))
 	}
 
+	if s.privateKey != nil {
+		body, key, err = utils.EncryptWithPublicKey(body, s.privateKey)
+		if err != nil {
+			fmt.Println("Encryption error: ", err)
+			return err
+		}
+	} else {
+		fmt.Println("Private key not found")
+	}
+
 	if compressed, err = utils.GzipCompress(body); err != nil {
 		fmt.Println("Compressed body error: ", err)
 		return err
@@ -187,6 +200,10 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 			SetHeader("Accept-Encoding", "gzip").
 			SetHeader("Content-Encoding", "gzip").
 			SetBody(compressed)
+
+		if s.privateKey != nil {
+			r = r.SetHeader(utils.CryptoKey, hex.EncodeToString(key))
+		}
 
 		if s.config.Secret != "" {
 			r = r.SetHeader(utils.AuthHeaderName, hexHash)

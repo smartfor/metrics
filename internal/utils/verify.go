@@ -10,6 +10,7 @@ import (
 
 var (
 	AuthHeaderName = "HashSHA256"
+	CryptoKey      = "AES-Key"
 )
 
 func Hash(value []byte) hash.Hash {

@@ -25,3 +25,7 @@ vendor/
 .vscode
 
 metrics-db.json
+
+public_key.pem
+certificate.pem
+private_key.pem

@@ -19,6 +19,7 @@ const (
 type Config struct {
 	HostEndpoint    string
 	Secret          string
+	CryptoKey       string
 	RateLimit       int
 	PollInterval    time.Duration
 	ReportInterval  time.Duration
@@ -32,6 +33,7 @@ func GetConfig() Config {
 	hostEndpoint := flag.String("a", "http://localhost:8080", "Host Endpoint")
 	secret := flag.String("k", "", "Secret Key")
 	rateLimit := flag.Int("l", 1, "Rate limit")
+	cryptoKey := flag.String("crypto-key", "", "Public key for encryption")
 
 	flag.Parse()
 
@@ -54,6 +56,10 @@ func GetConfig() Config {
 		*secret = k
 	}
 
+	if k := os.Getenv("CRYPTO_KEY"); k != "" {
+		*cryptoKey = k
+	}
+
 	if !strings.HasPrefix(*hostEndpoint, HTTPProto) && !strings.HasPrefix(*hostEndpoint, HTTPSProto) {
 		*hostEndpoint = HTTPProto + *hostEndpoint
 	}
@@ -64,5 +70,6 @@ func GetConfig() Config {
 		ResponseTimeout: time.Duration(*responseTimeout) * time.Second,
 		HostEndpoint:    *hostEndpoint,
 		Secret:          *secret,
+		CryptoKey:       *cryptoKey,
 	}
 }
