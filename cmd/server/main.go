@@ -55,11 +55,20 @@ func main() {
 		}
 	}
 
+	var privateKey []byte
+	if cfg.CryptoKey != "" {
+		zlog.Info("Crypto key is set")
+		privateKey, err = os.ReadFile(cfg.CryptoKey)
+		if err != nil {
+			zlog.Fatal("Error reading crypto key file: ", zap.Error(err))
+		}
+	}
+
 	var router chi.Router
 	if postgresStorage != nil {
-		router = handlers.Router(postgresStorage, zlog, cfg.Secret)
+		router = handlers.Router(postgresStorage, zlog, cfg.Secret, privateKey)
 	} else {
-		router = handlers.Router(memStorage, zlog, cfg.Secret)
+		router = handlers.Router(memStorage, zlog, cfg.Secret, privateKey)
 		if cfg.StoreInterval > 0 {
 			go func(
 				storage core.Storage,

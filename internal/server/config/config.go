@@ -34,6 +34,8 @@ type Config struct {
 	StoreInterval time.Duration
 	// Restore флаг включающий воостановление метрик в память после старта сервера
 	Restore bool
+	// CryptoKey путь к ключу для шифрования данных
+	CryptoKey string
 }
 
 // GetConfig Функция для получения конфигурации сервера.
@@ -47,6 +49,7 @@ func GetConfig() (*Config, error) {
 		restore         = flag.Bool("r", true, "restore metrics when server starts")
 		dbDsn           = flag.String("d", "", "database DSN")
 		key             = flag.String("k", "", "very very very secret key")
+		cryptoKey       = flag.String("crypto-key", "", "Crypto key")
 	)
 	flag.Parse()
 
@@ -65,6 +68,7 @@ func GetConfig() (*Config, error) {
 	utils.TryGetBoolFromEnv("RESTORE", restore)
 	utils.TryTakeStringFromEnv("DATABASE_DSN", dbDsn)
 	utils.TryTakeStringFromEnv("KEY", key)
+	utils.TryTakeStringFromEnv("CRYPTO_KEY", cryptoKey)
 
 	return &Config{
 		Addr:            *addr,
@@ -74,5 +78,6 @@ func GetConfig() (*Config, error) {
 		Restore:         *restore,
 		DatabaseDSN:     *dbDsn,
 		Secret:          *key,
+		CryptoKey:       *cryptoKey,
 	}, nil
 }
