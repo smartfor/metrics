@@ -10,7 +10,7 @@ import (
 )
 
 // Router создает роутер сервера со всем обработчиками ендпоинтов включая ендпоинты профилирования
-func Router(s core.Storage, logger *zap.Logger, secret string) chi.Router {
+func Router(s core.Storage, logger *zap.Logger, secret string, cryptoKey []byte) chi.Router {
 	r := chi.NewRouter()
 
 	r.Use(middlewares.GzipMiddleware)
@@ -26,9 +26,14 @@ func Router(s core.Storage, logger *zap.Logger, secret string) chi.Router {
 	r.Mount("/debug", middleware.Profiler())
 
 	r.Group(func(r chi.Router) {
+		if cryptoKey != nil {
+			r.Use(middlewares.MakeCryptoMiddleware(cryptoKey))
+		}
+
 		if secret != "" {
 			r.Use(middlewares.MakeAuthMiddleware(secret))
 		}
+
 		r.Post("/updates/", MakeBatchUpdateJSONHandler(s))
 		r.Post("/update/", MakeUpdateJSONHandler(s))
 		r.Post("/update/{type}/{key}/{value}", MakeUpdateHandler(s))

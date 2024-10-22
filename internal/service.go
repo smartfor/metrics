@@ -40,31 +40,33 @@ type Service struct {
 	mu          *sync.Mutex
 	config      config.Config
 	pollCounter atomic.Int64
+	privateKey  []byte
 }
 
-func NewService(cfg *config.Config) Service {
+func NewService(cfg *config.Config, privateKey []byte) Service {
 	client := resty.
 		New().
 		SetBaseURL(cfg.HostEndpoint).
 		SetHeader("Content-Type", "application/json").
-		SetTimeout(cfg.ResponseTimeout)
+		SetTimeout(cfg.ResponseTimeoutDuration)
 
 	return Service{
-		config: *cfg,
-		client: client,
-		mu:     &sync.Mutex{},
+		config:     *cfg,
+		client:     client,
+		privateKey: privateKey,
+		mu:         &sync.Mutex{},
 	}
 }
 
 func (s *Service) Run(ctx context.Context) {
 	var (
-		mainPollCh     = polling.CreateMainPollChannel(ctx, s.config.PollInterval)
-		advancedPollCh = polling.CreateAdvancedPollChannel(ctx, s.config.PollInterval)
+		mainPollCh     = polling.CreateMainPollChannel(ctx, s.config.PollIntervalDuration)
+		advancedPollCh = polling.CreateAdvancedPollChannel(ctx, s.config.PollIntervalDuration)
 		fanIn          = polling.FanInPolling(ctx, mainPollCh, advancedPollCh)
 		jobs           = make(chan Job, s.config.RateLimit)
 		results        = make(chan JobResult, s.config.RateLimit)
 		messages       = make([]polling.PollMessage, 0, 1024)
-		ticker         = time.NewTicker(s.config.ReportInterval)
+		ticker         = time.NewTicker(s.config.ReportIntervalDuration)
 	)
 
 	for w := 0; w <= s.config.RateLimit; w++ {
@@ -145,6 +147,7 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 		batch      []metrics.Metrics
 		err        error
 		body       []byte
+		key        []byte
 		compressed []byte
 		sign       hash.Hash
 		hexHash    string
@@ -176,6 +179,14 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 		hexHash = hex.EncodeToString(sign.Sum(nil))
 	}
 
+	if s.privateKey != nil {
+		body, key, err = utils.EncryptWithPublicKey(body, s.privateKey)
+		if err != nil {
+			fmt.Println("Encryption error: ", err)
+			return err
+		}
+	}
+
 	if compressed, err = utils.GzipCompress(body); err != nil {
 		fmt.Println("Compressed body error: ", err)
 		return err
@@ -187,6 +198,10 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 			SetHeader("Accept-Encoding", "gzip").
 			SetHeader("Content-Encoding", "gzip").
 			SetBody(compressed)
+
+		if s.privateKey != nil {
+			r = r.SetHeader(utils.CryptoKey, hex.EncodeToString(key))
+		}
 
 		if s.config.Secret != "" {
 			r = r.SetHeader(utils.AuthHeaderName, hexHash)
