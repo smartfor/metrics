@@ -3,8 +3,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/smartfor/metrics/internal"
 	"github.com/smartfor/metrics/internal/build"
@@ -16,8 +21,7 @@ func main() {
 
 	cfg, err := config.GetConfig()
 	if err != nil {
-		fmt.Printf("Error loading configuration: %s\n", err)
-		return
+		log.Fatalf("Error loading configuration: %s\n", err)
 	}
 
 	fmt.Printf("Agent config :: \n %v\n", cfg)
@@ -25,17 +29,38 @@ func main() {
 	var privateKey []byte
 	if cfg.CryptoKey != "" {
 		if cfg.CryptoKey != "" {
-			fmt.Println("Crypto key is set")
 			pk, err := os.ReadFile(cfg.CryptoKey)
 			if err != nil {
-				fmt.Println("Public key not found")
-				return
+				log.Fatalf("Public key not found")
 			}
 			privateKey = pk
-			fmt.Println(string(privateKey))
 		}
 	}
 
 	s := internal.NewService(cfg, privateKey)
-	s.Run(context.Background())
+
+	waitShutdown := make(chan struct{})
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM)
+
+	go func() {
+		<-done
+		log.Println("Shutting down server...")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := s.Shutdown(ctx); err != nil {
+			log.Fatalf("Agent Shutdown Failed: %v", err)
+		}
+
+		close(waitShutdown)
+	}()
+
+	if err := s.Run(context.Background()); err != nil && !errors.Is(err, internal.ErrAgentClosed) {
+		log.Fatalf("Agent Run failed: %v", err)
+	}
+
+	<-waitShutdown
+	fmt.Println("Agent Shutdown gracefully!")
 }

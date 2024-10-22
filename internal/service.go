@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash"
+	"math/rand"
 	"slices"
 	"strconv"
 	"sync"
@@ -20,6 +22,8 @@ import (
 	"github.com/smartfor/metrics/internal/polling"
 	"github.com/smartfor/metrics/internal/utils"
 )
+
+var ErrAgentClosed = errors.New("agent closed")
 
 var UpdateBatchURL string = "/updates/"
 
@@ -36,11 +40,13 @@ type JobResult struct {
 }
 
 type Service struct {
-	client      *resty.Client
-	mu          *sync.Mutex
-	config      config.Config
-	pollCounter atomic.Int64
-	privateKey  []byte
+	client             *resty.Client
+	mu                 *sync.Mutex
+	config             config.Config
+	pollCounter        atomic.Int64
+	privateKey         []byte
+	inShutdown         atomic.Bool
+	activeWorkersCount atomic.Int64
 }
 
 func NewService(cfg *config.Config, privateKey []byte) Service {
@@ -51,14 +57,16 @@ func NewService(cfg *config.Config, privateKey []byte) Service {
 		SetTimeout(cfg.ResponseTimeoutDuration)
 
 	return Service{
-		config:     *cfg,
-		client:     client,
-		privateKey: privateKey,
-		mu:         &sync.Mutex{},
+		config:             *cfg,
+		client:             client,
+		privateKey:         privateKey,
+		mu:                 &sync.Mutex{},
+		inShutdown:         atomic.Bool{},
+		activeWorkersCount: atomic.Int64{},
 	}
 }
 
-func (s *Service) Run(ctx context.Context) {
+func (s *Service) Run(ctx context.Context) error {
 	var (
 		mainPollCh     = polling.CreateMainPollChannel(ctx, s.config.PollIntervalDuration)
 		advancedPollCh = polling.CreateAdvancedPollChannel(ctx, s.config.PollIntervalDuration)
@@ -76,7 +84,7 @@ func (s *Service) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return ctx.Err()
 		case msg := <-fanIn:
 			if msg.Err != nil {
 				continue
@@ -89,6 +97,11 @@ func (s *Service) Run(ctx context.Context) {
 				continue
 			}
 		case <-ticker.C:
+			if s.inShutdown.Load() {
+				close(jobs)
+				return ErrAgentClosed
+			}
+
 			if len(messages) == 0 {
 				continue
 			}
@@ -133,7 +146,14 @@ func (s *Service) Run(ctx context.Context) {
 }
 
 func (s *Service) worker(jobs <-chan Job, results chan<- JobResult) {
+	s.activeWorkersCount.Add(1)
+	defer s.activeWorkersCount.Add(-1)
+
 	for j := range jobs {
+		if s.inShutdown.Load() {
+			return
+		}
+
 		if err := s.send(j.Store, j.PoolCounter); err != nil {
 			results <- JobResult{Err: err, PoolCounter: j.PoolCounter}
 		}
@@ -214,4 +234,36 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 	}
 
 	return nil
+}
+
+func (s *Service) Shutdown(ctx context.Context) error {
+	s.inShutdown.Store(true)
+	defer s.inShutdown.Store(false)
+
+	shutdownPollIntervalMax := 10 * time.Second
+	pollIntervalBase := time.Millisecond
+	nextPollInterval := func() time.Duration {
+		// Add 10% jitter.
+		interval := pollIntervalBase + time.Duration(rand.Intn(int(pollIntervalBase/10)))
+		// Double and clamp for next time.
+		pollIntervalBase *= 2
+		if pollIntervalBase > shutdownPollIntervalMax {
+			pollIntervalBase = shutdownPollIntervalMax
+		}
+		return interval
+	}
+
+	timer := time.NewTimer(nextPollInterval())
+	defer timer.Stop()
+	for {
+		if s.activeWorkersCount.Load() == 0 {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-timer.C:
+			timer.Reset(nextPollInterval())
+		}
+	}
 }
