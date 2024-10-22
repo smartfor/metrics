@@ -14,7 +14,12 @@ import (
 func main() {
 	build.PrintGlobalVars()
 
-	cfg := config.GetConfig()
+	cfg, err := config.GetConfig()
+	if err != nil {
+		fmt.Printf("Error loading configuration: %s\n", err)
+		return
+	}
+
 	fmt.Printf("Agent config :: \n %v\n", cfg)
 
 	var privateKey []byte
@@ -31,6 +36,6 @@ func main() {
 		}
 	}
 
-	s := internal.NewService(&cfg, privateKey)
+	s := internal.NewService(cfg, privateKey)
 	s.Run(context.Background())
 }

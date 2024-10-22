@@ -2,13 +2,14 @@
 package config
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/smartfor/metrics/internal/utils"
+	"github.com/smartfor/metrics/internal/cfgutils"
 )
 
 const (
@@ -17,59 +18,78 @@ const (
 )
 
 type Config struct {
-	HostEndpoint    string
-	Secret          string
-	CryptoKey       string
-	RateLimit       int
-	PollInterval    time.Duration
-	ReportInterval  time.Duration
-	ResponseTimeout time.Duration
+	HostEndpoint            string `json:"address"`
+	Secret                  string `json:"secret"`
+	CryptoKey               string `json:"crypto_key"`
+	RateLimit               int    `json:"rate_limit"`
+	PollInterval            string `json:"poll_interval"`
+	ReportInterval          string `json:"report_interval"`
+	ResponseTimeout         string `json:"response_timeout"`
+	PollIntervalDuration    time.Duration
+	ReportIntervalDuration  time.Duration
+	ResponseTimeoutDuration time.Duration
 }
 
-func GetConfig() Config {
-	pollInterval := flag.Int("p", 2, "Poll Interval")
-	reportInterval := flag.Int("r", 10, "Report Interval")
-	responseTimeout := flag.Int("t", 3, "Response Timeout")
-	hostEndpoint := flag.String("a", "http://localhost:8080", "Host Endpoint")
-	secret := flag.String("k", "", "Secret Key")
-	rateLimit := flag.Int("l", 1, "Rate limit")
-	cryptoKey := flag.String("crypto-key", "", "Public key for encryption")
+func GetConfig() (*Config, error) {
+	config := &Config{
+		HostEndpoint:    "http://localhost:8080",
+		PollInterval:    "2s",
+		ReportInterval:  "10s",
+		ResponseTimeout: "3s",
+		RateLimit:       1,
+	}
 
+	// resolve config path
+	configFile := flag.String("config", "", "path to config file")
+	flag.StringVar(configFile, "c", "", "path to config file (shorthand)")
 	flag.Parse()
+	cfgutils.TryTakeStringFromEnv("CONFIG", configFile)
+	// Load from JSON config file if specified
+	if *configFile != "" {
+		file, err := os.Open(*configFile)
+		if err != nil {
+			return nil, fmt.Errorf("error opening config file: %w", err)
+		}
+		defer file.Close()
+		decoder := json.NewDecoder(file)
+		if err := decoder.Decode(config); err != nil {
+			return nil, fmt.Errorf("error decoding JSON config: %w", err)
+		}
+	}
 
 	if len(flag.Args()) > 0 {
-		fmt.Println("Error: unknown flags:", flag.Args())
-		flag.PrintDefaults()
-		os.Exit(1)
+		return nil, fmt.Errorf("unknown flags: %v", flag.Args())
 	}
 
-	utils.TryTakeIntFromEnv("POLL_INTERVAL", pollInterval)
-	utils.TryTakeIntFromEnv("REPORT_INTERVAL", reportInterval)
-	utils.TryTakeIntFromEnv("RESPONSE_TIMEOUT", responseTimeout)
-	utils.TryTakeIntFromEnv("RATE_LIMIT", rateLimit)
+	cfgutils.ParseString("a", "ADDRESS", "host endpoint", &config.HostEndpoint)
+	cfgutils.ParseString("k", "KEY", "secret key", &config.Secret)
+	cfgutils.ParseInt("l", "RATE_LIMIT", "rate limit", &config.RateLimit)
+	cfgutils.ParseString("crypto-key", "CRYPTO_KEY", "crypto key", &config.CryptoKey)
 
-	if a := os.Getenv("ADDRESS"); a != "" {
-		*hostEndpoint = a
+	cfgutils.ParseString("p", "POLL_INTERVAL", "poll interval", &config.PollInterval)
+	val, err := time.ParseDuration(config.PollInterval)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing poll interval: %w", err)
+	}
+	config.PollIntervalDuration = val
+
+	cfgutils.ParseString("r", "REPORT_INTERVAL", "report interval", &config.ReportInterval)
+	val, err = time.ParseDuration(config.ReportInterval)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing report interval: %w", err)
+	}
+	config.ReportIntervalDuration = val
+
+	cfgutils.ParseString("t", "RESPONSE_TIMEOUT", "response timeout", &config.ResponseTimeout)
+	val, err = time.ParseDuration(config.ResponseTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing response timeout: %w", err)
+	}
+	config.ResponseTimeoutDuration = val
+
+	if !strings.HasPrefix(config.HostEndpoint, HTTPProto) && !strings.HasPrefix(config.HostEndpoint, HTTPSProto) {
+		config.HostEndpoint = HTTPProto + config.HostEndpoint
 	}
 
-	if k := os.Getenv("KEY"); k != "" {
-		*secret = k
-	}
-
-	if k := os.Getenv("CRYPTO_KEY"); k != "" {
-		*cryptoKey = k
-	}
-
-	if !strings.HasPrefix(*hostEndpoint, HTTPProto) && !strings.HasPrefix(*hostEndpoint, HTTPSProto) {
-		*hostEndpoint = HTTPProto + *hostEndpoint
-	}
-
-	return Config{
-		PollInterval:    time.Duration(*pollInterval) * time.Second,
-		ReportInterval:  time.Duration(*reportInterval) * time.Second,
-		ResponseTimeout: time.Duration(*responseTimeout) * time.Second,
-		HostEndpoint:    *hostEndpoint,
-		Secret:          *secret,
-		CryptoKey:       *cryptoKey,
-	}
+	return config, nil
 }

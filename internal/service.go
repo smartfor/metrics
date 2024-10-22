@@ -48,7 +48,7 @@ func NewService(cfg *config.Config, privateKey []byte) Service {
 		New().
 		SetBaseURL(cfg.HostEndpoint).
 		SetHeader("Content-Type", "application/json").
-		SetTimeout(cfg.ResponseTimeout)
+		SetTimeout(cfg.ResponseTimeoutDuration)
 
 	return Service{
 		config:     *cfg,
@@ -60,13 +60,13 @@ func NewService(cfg *config.Config, privateKey []byte) Service {
 
 func (s *Service) Run(ctx context.Context) {
 	var (
-		mainPollCh     = polling.CreateMainPollChannel(ctx, s.config.PollInterval)
-		advancedPollCh = polling.CreateAdvancedPollChannel(ctx, s.config.PollInterval)
+		mainPollCh     = polling.CreateMainPollChannel(ctx, s.config.PollIntervalDuration)
+		advancedPollCh = polling.CreateAdvancedPollChannel(ctx, s.config.PollIntervalDuration)
 		fanIn          = polling.FanInPolling(ctx, mainPollCh, advancedPollCh)
 		jobs           = make(chan Job, s.config.RateLimit)
 		results        = make(chan JobResult, s.config.RateLimit)
 		messages       = make([]polling.PollMessage, 0, 1024)
-		ticker         = time.NewTicker(s.config.ReportInterval)
+		ticker         = time.NewTicker(s.config.ReportIntervalDuration)
 	)
 
 	for w := 0; w <= s.config.RateLimit; w++ {
@@ -185,8 +185,6 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 			fmt.Println("Encryption error: ", err)
 			return err
 		}
-	} else {
-		fmt.Println("Private key not found")
 	}
 
 	if compressed, err = utils.GzipCompress(body); err != nil {

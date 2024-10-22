@@ -8,7 +8,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"fmt"
 )
 
 // GenerateSymmetricKey generates a new AES symmetric key
@@ -64,7 +63,6 @@ func EncryptWithPublicKey(data []byte, publicKey []byte) ([]byte, []byte, error)
 
 // encryptKeyWithPublicKey encrypts a symmetric key with a public key
 func encryptKeyWithPublicKey(key []byte, publicKey []byte) ([]byte, error) {
-	fmt.Println("publicKey: ", string(publicKey), "key: ", string(key))
 	block, _ := pem.Decode(publicKey)
 	if block == nil || block.Type != "PUBLIC KEY" {
 		return nil, errors.New("failed to decode PEM block containing public key")

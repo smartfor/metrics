@@ -42,7 +42,7 @@ func main() {
 		zlog.Fatal("Error creating backup storage: ", zap.Error(err))
 	}
 
-	memStorage, err := storage.NewMemStorage(backupStorage, cfg.Restore, cfg.StoreInterval == 0)
+	memStorage, err := storage.NewMemStorage(backupStorage, cfg.Restore, cfg.StoreIntervalDuration == 0)
 	if err != nil {
 		zlog.Fatal("Error creating metric storage: ", zap.Error(err))
 	}
@@ -69,7 +69,7 @@ func main() {
 		router = handlers.Router(postgresStorage, zlog, cfg.Secret, privateKey)
 	} else {
 		router = handlers.Router(memStorage, zlog, cfg.Secret, privateKey)
-		if cfg.StoreInterval > 0 {
+		if cfg.StoreIntervalDuration > 0 {
 			go func(
 				storage core.Storage,
 				backup core.Storage,
@@ -85,7 +85,7 @@ func main() {
 						zlog.Error("Error sync metrics: ", zap.Error(err))
 					}
 				}
-			}(memStorage, backupStorage, cfg.StoreInterval)
+			}(memStorage, backupStorage, cfg.StoreIntervalDuration)
 		}
 	}
 	server := &http.Server{
