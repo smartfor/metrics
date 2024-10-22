@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash"
+	"math/rand"
 	"slices"
 	"strconv"
 	"sync"
@@ -20,6 +22,8 @@ import (
 	"github.com/smartfor/metrics/internal/polling"
 	"github.com/smartfor/metrics/internal/utils"
 )
+
+var ErrAgentClosed = errors.New("agent closed")
 
 var UpdateBatchURL string = "/updates/"
 
@@ -36,35 +40,41 @@ type JobResult struct {
 }
 
 type Service struct {
-	client      *resty.Client
-	mu          *sync.Mutex
-	config      config.Config
-	pollCounter atomic.Int64
+	client             *resty.Client
+	mu                 *sync.Mutex
+	config             config.Config
+	pollCounter        atomic.Int64
+	privateKey         []byte
+	inShutdown         atomic.Bool
+	activeWorkersCount atomic.Int64
 }
 
-func NewService(cfg *config.Config) Service {
+func NewService(cfg *config.Config, privateKey []byte) Service {
 	client := resty.
 		New().
 		SetBaseURL(cfg.HostEndpoint).
 		SetHeader("Content-Type", "application/json").
-		SetTimeout(cfg.ResponseTimeout)
+		SetTimeout(cfg.ResponseTimeoutDuration)
 
 	return Service{
-		config: *cfg,
-		client: client,
-		mu:     &sync.Mutex{},
+		config:             *cfg,
+		client:             client,
+		privateKey:         privateKey,
+		mu:                 &sync.Mutex{},
+		inShutdown:         atomic.Bool{},
+		activeWorkersCount: atomic.Int64{},
 	}
 }
 
-func (s *Service) Run(ctx context.Context) {
+func (s *Service) Run(ctx context.Context) error {
 	var (
-		mainPollCh     = polling.CreateMainPollChannel(ctx, s.config.PollInterval)
-		advancedPollCh = polling.CreateAdvancedPollChannel(ctx, s.config.PollInterval)
+		mainPollCh     = polling.CreateMainPollChannel(ctx, s.config.PollIntervalDuration)
+		advancedPollCh = polling.CreateAdvancedPollChannel(ctx, s.config.PollIntervalDuration)
 		fanIn          = polling.FanInPolling(ctx, mainPollCh, advancedPollCh)
 		jobs           = make(chan Job, s.config.RateLimit)
 		results        = make(chan JobResult, s.config.RateLimit)
 		messages       = make([]polling.PollMessage, 0, 1024)
-		ticker         = time.NewTicker(s.config.ReportInterval)
+		ticker         = time.NewTicker(s.config.ReportIntervalDuration)
 	)
 
 	for w := 0; w <= s.config.RateLimit; w++ {
@@ -74,7 +84,7 @@ func (s *Service) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return ctx.Err()
 		case msg := <-fanIn:
 			if msg.Err != nil {
 				continue
@@ -87,6 +97,11 @@ func (s *Service) Run(ctx context.Context) {
 				continue
 			}
 		case <-ticker.C:
+			if s.inShutdown.Load() {
+				close(jobs)
+				return ErrAgentClosed
+			}
+
 			if len(messages) == 0 {
 				continue
 			}
@@ -131,7 +146,14 @@ func (s *Service) Run(ctx context.Context) {
 }
 
 func (s *Service) worker(jobs <-chan Job, results chan<- JobResult) {
+	s.activeWorkersCount.Add(1)
+	defer s.activeWorkersCount.Add(-1)
+
 	for j := range jobs {
+		if s.inShutdown.Load() {
+			return
+		}
+
 		if err := s.send(j.Store, j.PoolCounter); err != nil {
 			results <- JobResult{Err: err, PoolCounter: j.PoolCounter}
 		}
@@ -145,6 +167,7 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 		batch      []metrics.Metrics
 		err        error
 		body       []byte
+		key        []byte
 		compressed []byte
 		sign       hash.Hash
 		hexHash    string
@@ -176,6 +199,14 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 		hexHash = hex.EncodeToString(sign.Sum(nil))
 	}
 
+	if s.privateKey != nil {
+		body, key, err = utils.EncryptWithPublicKey(body, s.privateKey)
+		if err != nil {
+			fmt.Println("Encryption error: ", err)
+			return err
+		}
+	}
+
 	if compressed, err = utils.GzipCompress(body); err != nil {
 		fmt.Println("Compressed body error: ", err)
 		return err
@@ -188,6 +219,10 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 			SetHeader("Content-Encoding", "gzip").
 			SetBody(compressed)
 
+		if s.privateKey != nil {
+			r = r.SetHeader(utils.CryptoKey, hex.EncodeToString(key))
+		}
+
 		if s.config.Secret != "" {
 			r = r.SetHeader(utils.AuthHeaderName, hexHash)
 		}
@@ -199,4 +234,36 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 	}
 
 	return nil
+}
+
+func (s *Service) Shutdown(ctx context.Context) error {
+	s.inShutdown.Store(true)
+	defer s.inShutdown.Store(false)
+
+	shutdownPollIntervalMax := 10 * time.Second
+	pollIntervalBase := time.Millisecond
+	nextPollInterval := func() time.Duration {
+		// Add 10% jitter.
+		interval := pollIntervalBase + time.Duration(rand.Intn(int(pollIntervalBase/10)))
+		// Double and clamp for next time.
+		pollIntervalBase *= 2
+		if pollIntervalBase > shutdownPollIntervalMax {
+			pollIntervalBase = shutdownPollIntervalMax
+		}
+		return interval
+	}
+
+	timer := time.NewTimer(nextPollInterval())
+	defer timer.Stop()
+	for {
+		if s.activeWorkersCount.Load() == 0 {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-timer.C:
+			timer.Reset(nextPollInterval())
+		}
+	}
 }

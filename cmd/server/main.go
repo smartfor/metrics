@@ -42,7 +42,7 @@ func main() {
 		zlog.Fatal("Error creating backup storage: ", zap.Error(err))
 	}
 
-	memStorage, err := storage.NewMemStorage(backupStorage, cfg.Restore, cfg.StoreInterval == 0)
+	memStorage, err := storage.NewMemStorage(backupStorage, cfg.Restore, cfg.StoreIntervalDuration == 0)
 	if err != nil {
 		zlog.Fatal("Error creating metric storage: ", zap.Error(err))
 	}
@@ -55,12 +55,21 @@ func main() {
 		}
 	}
 
+	var privateKey []byte
+	if cfg.CryptoKey != "" {
+		zlog.Info("Crypto key is set")
+		privateKey, err = os.ReadFile(cfg.CryptoKey)
+		if err != nil {
+			zlog.Fatal("Error reading crypto key file: ", zap.Error(err))
+		}
+	}
+
 	var router chi.Router
 	if postgresStorage != nil {
-		router = handlers.Router(postgresStorage, zlog, cfg.Secret)
+		router = handlers.Router(postgresStorage, zlog, cfg.Secret, privateKey)
 	} else {
-		router = handlers.Router(memStorage, zlog, cfg.Secret)
-		if cfg.StoreInterval > 0 {
+		router = handlers.Router(memStorage, zlog, cfg.Secret, privateKey)
+		if cfg.StoreIntervalDuration > 0 {
 			go func(
 				storage core.Storage,
 				backup core.Storage,
@@ -76,7 +85,7 @@ func main() {
 						zlog.Error("Error sync metrics: ", zap.Error(err))
 					}
 				}
-			}(memStorage, backupStorage, cfg.StoreInterval)
+			}(memStorage, backupStorage, cfg.StoreIntervalDuration)
 		}
 	}
 	server := &http.Server{
@@ -86,7 +95,7 @@ func main() {
 	}
 
 	done := make(chan os.Signal, 1)
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	go func() {
 		<-done
