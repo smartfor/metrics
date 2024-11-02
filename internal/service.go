@@ -19,6 +19,7 @@ import (
 	"github.com/smartfor/metrics/internal/config"
 	"github.com/smartfor/metrics/internal/core"
 	"github.com/smartfor/metrics/internal/crypto"
+	"github.com/smartfor/metrics/internal/ip"
 	"github.com/smartfor/metrics/internal/metrics"
 	"github.com/smartfor/metrics/internal/polling"
 	"github.com/smartfor/metrics/internal/utils"
@@ -48,14 +49,20 @@ type Service struct {
 	privateKey         []byte
 	inShutdown         atomic.Bool
 	activeWorkersCount atomic.Int64
+	realIP             string
 }
 
-func NewService(cfg *config.Config, privateKey []byte) Service {
+func NewService(cfg *config.Config, privateKey []byte) (Service, error) {
 	client := resty.
 		New().
 		SetBaseURL(cfg.HostEndpoint).
 		SetHeader("Content-Type", "application/json").
 		SetTimeout(cfg.ResponseTimeoutDuration)
+
+	realIP, err := ip.GetExternalIP()
+	if err != nil {
+		return Service{}, err
+	}
 
 	return Service{
 		config:             *cfg,
@@ -64,7 +71,8 @@ func NewService(cfg *config.Config, privateKey []byte) Service {
 		mu:                 &sync.Mutex{},
 		inShutdown:         atomic.Bool{},
 		activeWorkersCount: atomic.Int64{},
-	}
+		realIP:             realIP,
+	}, nil
 }
 
 func (s *Service) Run(ctx context.Context) error {
@@ -146,6 +154,38 @@ func (s *Service) Run(ctx context.Context) error {
 	}
 }
 
+func (s *Service) Shutdown(ctx context.Context) error {
+	s.inShutdown.Store(true)
+	defer s.inShutdown.Store(false)
+
+	shutdownPollIntervalMax := 10 * time.Second
+	pollIntervalBase := time.Millisecond
+	nextPollInterval := func() time.Duration {
+		// Add 10% jitter.
+		interval := pollIntervalBase + time.Duration(rand.Intn(int(pollIntervalBase/10)))
+		// Double and clamp for next time.
+		pollIntervalBase *= 2
+		if pollIntervalBase > shutdownPollIntervalMax {
+			pollIntervalBase = shutdownPollIntervalMax
+		}
+		return interval
+	}
+
+	timer := time.NewTimer(nextPollInterval())
+	defer timer.Stop()
+	for {
+		if s.activeWorkersCount.Load() == 0 {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-timer.C:
+			timer.Reset(nextPollInterval())
+		}
+	}
+}
+
 func (s *Service) worker(jobs <-chan Job, results chan<- JobResult) {
 	s.activeWorkersCount.Add(1)
 	defer s.activeWorkersCount.Add(-1)
@@ -218,6 +258,7 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 			SetHeader("Content-Type", "application/json").
 			SetHeader("Accept-Encoding", "gzip").
 			SetHeader("Content-Encoding", "gzip").
+			SetHeader("X-Real-IP", s.realIP).
 			SetBody(compressed)
 
 		if s.privateKey != nil {
@@ -235,36 +276,4 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 	}
 
 	return nil
-}
-
-func (s *Service) Shutdown(ctx context.Context) error {
-	s.inShutdown.Store(true)
-	defer s.inShutdown.Store(false)
-
-	shutdownPollIntervalMax := 10 * time.Second
-	pollIntervalBase := time.Millisecond
-	nextPollInterval := func() time.Duration {
-		// Add 10% jitter.
-		interval := pollIntervalBase + time.Duration(rand.Intn(int(pollIntervalBase/10)))
-		// Double and clamp for next time.
-		pollIntervalBase *= 2
-		if pollIntervalBase > shutdownPollIntervalMax {
-			pollIntervalBase = shutdownPollIntervalMax
-		}
-		return interval
-	}
-
-	timer := time.NewTimer(nextPollInterval())
-	defer timer.Stop()
-	for {
-		if s.activeWorkersCount.Load() == 0 {
-			return nil
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-timer.C:
-			timer.Reset(nextPollInterval())
-		}
-	}
 }

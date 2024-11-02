@@ -37,7 +37,10 @@ func main() {
 		}
 	}
 
-	s := internal.NewService(cfg, privateKey)
+	s, err := internal.NewService(cfg, privateKey)
+	if err != nil {
+		log.Fatalf("Error creating service: %v", err)
+	}
 
 	waitShutdown := make(chan struct{})
 	done := make(chan os.Signal, 1)

@@ -10,8 +10,12 @@ import (
 )
 
 // Router создает роутер сервера со всем обработчиками ендпоинтов включая ендпоинты профилирования
-func Router(s core.Storage, logger *zap.Logger, secret string, cryptoKey []byte) chi.Router {
+func Router(s core.Storage, logger *zap.Logger, secret string, cryptoKey []byte, trustedSubnet string) chi.Router {
 	r := chi.NewRouter()
+
+	if trustedSubnet != "" {
+		r.Use(middlewares.MakeInSubnetMiddleware(trustedSubnet))
+	}
 
 	r.Use(middlewares.GzipMiddleware)
 	r.Use(middlewares.MakeLoggerMiddleware(logger))
