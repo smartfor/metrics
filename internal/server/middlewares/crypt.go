@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/smartfor/metrics/internal/crypto"
 	"github.com/smartfor/metrics/internal/utils"
 )
 
@@ -34,7 +35,7 @@ func MakeCryptoMiddleware(cryptoKey []byte) func(next http.Handler) http.Handler
 			}
 
 			// Decrypt the message using the private key
-			decodedMessage, err := utils.DecryptWithPrivateKey(data, key, cryptoKey)
+			decodedMessage, err := crypto.DecryptWithPrivateKey(data, key, cryptoKey)
 			if err != nil {
 				log.Println("Error decrypting message:", err)
 				http.Error(w, "Failed to decrypt message", http.StatusInternalServerError)

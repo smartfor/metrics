@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/smartfor/metrics/internal/utils"
+	"github.com/smartfor/metrics/internal/crypto"
 )
 
 func main() {
@@ -20,12 +20,12 @@ func main() {
 
 	str := "Hello, World!"
 	v := []byte(str)
-	encryptedValue, key, err := utils.EncryptWithPublicKey(v, bytesPub)
+	encryptedValue, key, err := crypto.EncryptWithPublicKey(v, bytesPub)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	out, err := utils.DecryptWithPrivateKey(encryptedValue, key, bytesPriv)
+	out, err := crypto.DecryptWithPrivateKey(encryptedValue, key, bytesPriv)
 	if err != nil {
 		return
 	}

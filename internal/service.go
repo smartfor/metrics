@@ -18,6 +18,7 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/smartfor/metrics/internal/config"
 	"github.com/smartfor/metrics/internal/core"
+	"github.com/smartfor/metrics/internal/crypto"
 	"github.com/smartfor/metrics/internal/metrics"
 	"github.com/smartfor/metrics/internal/polling"
 	"github.com/smartfor/metrics/internal/utils"
@@ -200,7 +201,7 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 	}
 
 	if s.privateKey != nil {
-		body, key, err = utils.EncryptWithPublicKey(body, s.privateKey)
+		body, key, err = crypto.EncryptWithPublicKey(body, s.privateKey)
 		if err != nil {
 			fmt.Println("Encryption error: ", err)
 			return err
