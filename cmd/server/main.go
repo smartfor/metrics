@@ -66,9 +66,9 @@ func main() {
 
 	var router chi.Router
 	if postgresStorage != nil {
-		router = handlers.Router(postgresStorage, zlog, cfg.Secret, privateKey)
+		router = handlers.Router(postgresStorage, zlog, cfg.Secret, privateKey, cfg.TrustedSubnet)
 	} else {
-		router = handlers.Router(memStorage, zlog, cfg.Secret, privateKey)
+		router = handlers.Router(memStorage, zlog, cfg.Secret, privateKey, cfg.TrustedSubnet)
 		if cfg.StoreIntervalDuration > 0 {
 			go func(
 				storage core.Storage,
