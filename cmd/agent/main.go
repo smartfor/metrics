@@ -14,6 +14,7 @@ import (
 	"github.com/smartfor/metrics/internal"
 	"github.com/smartfor/metrics/internal/build"
 	"github.com/smartfor/metrics/internal/config"
+	"github.com/smartfor/metrics/internal/metric_sender"
 )
 
 func main() {
@@ -37,10 +38,11 @@ func main() {
 		}
 	}
 
-	s, err := internal.NewService(cfg, privateKey)
+	sender, err := metric_sender.NewHttpMetricSender(cfg)
 	if err != nil {
-		log.Fatalf("Error creating service: %v", err)
+		log.Fatalf("Error creating metric sender: %v", err)
 	}
+	s := internal.NewService(cfg, sender, privateKey)
 
 	waitShutdown := make(chan struct{})
 	done := make(chan os.Signal, 1)

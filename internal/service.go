@@ -3,11 +3,8 @@ package internal
 
 import (
 	"context"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"hash"
 	"math/rand"
 	"slices"
 	"strconv"
@@ -15,19 +12,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/go-resty/resty/v2"
 	"github.com/smartfor/metrics/internal/config"
 	"github.com/smartfor/metrics/internal/core"
-	"github.com/smartfor/metrics/internal/crypto"
-	"github.com/smartfor/metrics/internal/ip"
+	"github.com/smartfor/metrics/internal/metric_sender"
 	"github.com/smartfor/metrics/internal/metrics"
 	"github.com/smartfor/metrics/internal/polling"
-	"github.com/smartfor/metrics/internal/utils"
 )
 
 var ErrAgentClosed = errors.New("agent closed")
-
-var UpdateBatchURL string = "/updates/"
 
 type Metric = polling.MetricsModel
 
@@ -42,7 +34,6 @@ type JobResult struct {
 }
 
 type Service struct {
-	client             *resty.Client
 	mu                 *sync.Mutex
 	config             config.Config
 	pollCounter        atomic.Int64
@@ -50,29 +41,22 @@ type Service struct {
 	inShutdown         atomic.Bool
 	activeWorkersCount atomic.Int64
 	realIP             string
+	sender             metric_sender.MetricSender
 }
 
-func NewService(cfg *config.Config, privateKey []byte) (Service, error) {
-	client := resty.
-		New().
-		SetBaseURL(cfg.HostEndpoint).
-		SetHeader("Content-Type", "application/json").
-		SetTimeout(cfg.ResponseTimeoutDuration)
-
-	realIP, err := ip.GetExternalIP()
-	if err != nil {
-		return Service{}, err
-	}
-
+func NewService(
+	cfg *config.Config,
+	sender metric_sender.MetricSender,
+	privateKey []byte,
+) Service {
 	return Service{
 		config:             *cfg,
-		client:             client,
 		privateKey:         privateKey,
 		mu:                 &sync.Mutex{},
 		inShutdown:         atomic.Bool{},
 		activeWorkersCount: atomic.Int64{},
-		realIP:             realIP,
-	}, nil
+		sender:             sender,
+	}
 }
 
 func (s *Service) Run(ctx context.Context) error {
@@ -205,14 +189,9 @@ func (s *Service) worker(jobs <-chan Job, results chan<- JobResult) {
 
 func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 	var (
-		batch      []metrics.Metrics
-		err        error
-		body       []byte
-		key        []byte
-		compressed []byte
-		sign       hash.Hash
-		hexHash    string
-		metric     *metrics.Metrics
+		batch  []metrics.Metrics
+		err    error
+		metric *metrics.Metrics
 	)
 
 	store["PoolCount"] = polling.MetricsModel{
@@ -230,50 +209,8 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 		batch = append(batch, *metric)
 	}
 
-	if body, err = json.Marshal(batch); err != nil {
-		fmt.Println("Marshalling batch error: ", err)
-		return err
-	}
-
-	if s.config.Secret != "" {
-		sign = utils.Sign(body, s.config.Secret)
-		hexHash = hex.EncodeToString(sign.Sum(nil))
-	}
-
-	if s.privateKey != nil {
-		body, key, err = crypto.EncryptWithPublicKey(body, s.privateKey)
-		if err != nil {
-			fmt.Println("Encryption error: ", err)
-			return err
-		}
-	}
-
-	if compressed, err = utils.GzipCompress(body); err != nil {
-		fmt.Println("Compressed body error: ", err)
-		return err
-	}
-
-	_, err = utils.Retry(func() (*resty.Response, error) {
-		r := s.client.R().
-			SetHeader("Content-Type", "application/json").
-			SetHeader("Accept-Encoding", "gzip").
-			SetHeader("Content-Encoding", "gzip").
-			SetHeader("X-Real-IP", s.realIP).
-			SetBody(compressed)
-
-		if s.privateKey != nil {
-			r = r.SetHeader(utils.CryptoKey, hex.EncodeToString(key))
-		}
-
-		if s.config.Secret != "" {
-			r = r.SetHeader(utils.AuthHeaderName, hexHash)
-		}
-
-		return r.Post(UpdateBatchURL)
-	}, nil)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return s.sender.Send(batch, metric_sender.SendOptions{
+		PrivateKey: s.privateKey,
+		Secret:     s.config.Secret,
+	})
 }
