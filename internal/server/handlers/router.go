@@ -13,10 +13,6 @@ import (
 func Router(s core.Storage, logger *zap.Logger, secret string, cryptoKey []byte, trustedSubnet string) chi.Router {
 	r := chi.NewRouter()
 
-	if trustedSubnet != "" {
-		r.Use(middlewares.MakeInSubnetMiddleware(trustedSubnet))
-	}
-
 	r.Use(middlewares.GzipMiddleware)
 	r.Use(middlewares.MakeLoggerMiddleware(logger))
 
@@ -30,6 +26,10 @@ func Router(s core.Storage, logger *zap.Logger, secret string, cryptoKey []byte,
 	r.Mount("/debug", middleware.Profiler())
 
 	r.Group(func(r chi.Router) {
+		if trustedSubnet != "" {
+			r.Use(middlewares.MakeInSubnetMiddleware(trustedSubnet))
+		}
+
 		if cryptoKey != nil {
 			r.Use(middlewares.MakeCryptoMiddleware(cryptoKey))
 		}
