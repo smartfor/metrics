@@ -101,7 +101,7 @@ func retry[T any](f func() (T, error), attempts int, sleep time.Duration, incDel
 	if attempts--; attempts > 0 {
 		log.Printf("Attempt failed with error: %v. Retrying...", err)
 		time.Sleep(sleep)
-		return retry(f, attempts, incDelayFn(sleep), incDelayFn)
+		return retry[T](f, attempts, incDelayFn(sleep), incDelayFn)
 	}
 	return value, err
 }

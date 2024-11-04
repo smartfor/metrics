@@ -1,0 +1,21 @@
+syntax = "proto3";
+package metrics;
+
+option go_package = "/api/metricapi"; // replace with your package's import path
+
+import "google/protobuf/empty.proto";
+
+service Metrics {
+  rpc Update(UpdateRequest) returns (google.protobuf.Empty) {}
+}
+
+message UpdateRequest {
+  repeated Metric metrics = 1;
+}
+
+message Metric {
+  double value = 1;
+  int64 delta = 2;
+  string id = 3;
+  string mtype = 4;
+}

@@ -38,10 +38,21 @@ func main() {
 		}
 	}
 
-	sender, err := metric_sender.NewHttpMetricSender(cfg)
-	if err != nil {
-		log.Fatalf("Error creating metric sender: %v", err)
+	var sender metric_sender.MetricSender
+	if cfg.Transport == config.HttpTransport {
+		sender, err = metric_sender.NewHttpMetricSender(cfg)
+		if err != nil {
+			log.Fatalf("Error creating metric sender: %v", err)
+		}
+	} else if cfg.Transport == config.GrpcTransport {
+		sender, err = metric_sender.NewGrpcMetricSender(cfg)
+		if err != nil {
+			log.Fatalf("Error creating metric sender: %v", err)
+		}
+	} else {
+		log.Fatalf("Unknown transport type: %v", cfg.Transport)
 	}
+
 	s := internal.NewService(cfg, sender, privateKey)
 
 	waitShutdown := make(chan struct{})

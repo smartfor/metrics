@@ -25,6 +25,8 @@ var (
 type Config struct {
 	// Addr адрес сервера
 	Addr string `json:"address"`
+	// GrpcAddr адрес сервера gRPC
+	GrpcAddr string `json:"grpc_address"`
 	// LogLevel уровень логирования
 	LogLevel string `json:"log_level"`
 	// FileStoragePath путь к файловому хранилищу метрик
@@ -50,6 +52,7 @@ type Config struct {
 func GetConfig() (*Config, error) {
 	config := &Config{
 		Addr:            ":8080",
+		GrpcAddr:        ":8081",
 		LogLevel:        "info",
 		FileStoragePath: "/tmp/metrics-db.json",
 		StoreInterval:   "300s",
@@ -85,11 +88,27 @@ func GetConfig() (*Config, error) {
 	cfgutils.ParseString("d", "DATABASE_DSN", "database DSN", &config.DatabaseDSN)
 	cfgutils.ParseString("k", "KEY", "very very very secret key", &config.Secret)
 	cfgutils.ParseString("crypto-key", "CRYPTO_KEY", "Crypto key", &config.CryptoKey)
-	err := cfgutils.ParseStringWithValidator("a", "ADDRESS", "address and port to run server", &config.Addr, utils.ValidateAddress)
+	cfgutils.ParseString("i", "STORE_INTERVAL", "metrics store interval", &config.StoreInterval)
+	err := cfgutils.ParseStringWithValidator(
+		"grpc-addr",
+		"GRPC_ADDRESS",
+		"grpc address and port to run server",
+		&config.GrpcAddr,
+		utils.ValidateAddress,
+	)
 	if err != nil {
 		return nil, err
 	}
-	cfgutils.ParseString("i", "STORE_INTERVAL", "metrics store interval", &config.StoreInterval)
+	err = cfgutils.ParseStringWithValidator(
+		"a",
+		"ADDRESS",
+		"address and port to run server",
+		&config.Addr,
+		utils.ValidateAddress,
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	val, err := time.ParseDuration(config.StoreInterval)
 	if err != nil {

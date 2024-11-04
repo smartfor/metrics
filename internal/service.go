@@ -83,6 +83,7 @@ func (s *Service) Run(ctx context.Context) error {
 				continue
 			}
 
+			s.pollCounter.Add(1)
 			messages = append(messages, msg)
 		case result := <-results:
 			if result.Err != nil {
@@ -195,7 +196,7 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 	)
 
 	store["PoolCount"] = polling.MetricsModel{
-		Type:  core.Gauge,
+		Type:  core.Counter,
 		Key:   "PoolCount",
 		Value: strconv.FormatInt(pollCounter, 10),
 	}
