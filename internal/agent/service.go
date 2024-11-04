@@ -1,5 +1,5 @@
 // Package internal содержит всю логику работы с метриками.
-package internal
+package agent
 
 import (
 	"context"

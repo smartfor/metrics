@@ -14,6 +14,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -38,6 +39,8 @@ func NewGrpcMetricSender(cfg *config.Config) (MetricSender, error) {
 			MinConnectTimeout: 5 * time.Second, // Минимальное время ожидания соединения
 		}),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(grpc.UseCompressor(gzip.Name)),
+		grpc.WithChainUnaryInterceptor(MakeClientInterceptor(cfg)),
 	)
 	if err != nil {
 		return nil, err

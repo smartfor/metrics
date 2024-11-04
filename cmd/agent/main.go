@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/smartfor/metrics/internal"
+	"github.com/smartfor/metrics/internal/agent"
 	"github.com/smartfor/metrics/internal/build"
 	"github.com/smartfor/metrics/internal/config"
 	"github.com/smartfor/metrics/internal/metric_sender"
@@ -53,7 +53,7 @@ func main() {
 		log.Fatalf("Unknown transport type: %v", cfg.Transport)
 	}
 
-	s := internal.NewService(cfg, sender, privateKey)
+	s := agent.NewService(cfg, sender, privateKey)
 
 	waitShutdown := make(chan struct{})
 	done := make(chan os.Signal, 1)
@@ -73,7 +73,7 @@ func main() {
 		close(waitShutdown)
 	}()
 
-	if err := s.Run(context.Background()); err != nil && !errors.Is(err, internal.ErrAgentClosed) {
+	if err := s.Run(context.Background()); err != nil && !errors.Is(err, agent.ErrAgentClosed) {
 		log.Fatalf("Agent Run failed: %v", err)
 	}
 

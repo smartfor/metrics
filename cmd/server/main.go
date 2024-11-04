@@ -149,7 +149,11 @@ func main() {
 			return err
 		}
 
-		server := grpc.NewServer()
+		server := grpc.NewServer(
+			grpc.RPCCompressor(grpc.NewGZIPCompressor()),
+			grpc.RPCDecompressor(grpc.NewGZIPDecompressor()),
+		)
+
 		metricapi.RegisterMetricsServer(
 			server,
 			handlers.NewGRPCServer(memStorage, zlog, cfg.Secret, privateKey, cfg.TrustedSubnet),
