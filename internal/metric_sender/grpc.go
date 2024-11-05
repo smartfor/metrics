@@ -8,7 +8,7 @@ import (
 
 	"github.com/smartfor/metrics/api/metricapi"
 	"github.com/smartfor/metrics/internal/config"
-	"github.com/smartfor/metrics/internal/crypto_codec"
+	"github.com/smartfor/metrics/internal/cryptocodec"
 	"github.com/smartfor/metrics/internal/ip"
 	"github.com/smartfor/metrics/internal/metrics"
 	"github.com/smartfor/metrics/internal/utils"
@@ -43,7 +43,7 @@ func NewGRPCMetricSender(cfg *config.Config, publicKey []byte) (MetricSender, er
 		}),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(
-			grpc.ForceCodec(crypto_codec.MakeCryptoCodec()),
+			grpc.ForceCodec(cryptocodec.MakeCryptoCodec()),
 			grpc.UseCompressor(gzip.Name),
 		),
 		grpc.WithChainUnaryInterceptor(

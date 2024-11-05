@@ -1,4 +1,4 @@
-package crypto_codec
+package cryptocodec
 
 import (
 	"fmt"
