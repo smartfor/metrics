@@ -16,7 +16,9 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const ctxMetricsKey = "metricsAsBytes"
+type ctxMetricsKey string
+
+const ctxMetrics ctxMetricsKey = "metricsAsBytes"
 
 func MakeGrpcAuthInterceptor(cfg *config.Config) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
@@ -50,7 +52,7 @@ func MakeGrpcAuthInterceptor(cfg *config.Config) grpc.UnaryServerInterceptor {
 
 		var bodyBytes []byte
 
-		metrics := ctx.Value(ctxMetricsKey)
+		metrics := ctx.Value(ctxMetrics)
 		if metrics == nil {
 			metrics, ok = (req).(*metricapi.UpdateRequest)
 			if !ok {
@@ -63,7 +65,7 @@ func MakeGrpcAuthInterceptor(cfg *config.Config) grpc.UnaryServerInterceptor {
 			}
 
 			// кэшируем в контексте чтобы другим перехватчикам не нужно было заново маршалить весь запрос
-			ctx = context.WithValue(ctx, ctxMetricsKey, bodyBytes)
+			ctx = context.WithValue(ctx, ctxMetrics, bodyBytes)
 		} else {
 			bodyBytes = metrics.([]byte)
 		}
@@ -103,7 +105,7 @@ func MakeGrpcCryptoInterceptor(privateKey []byte) grpc.UnaryServerInterceptor {
 
 		var bodyBytes []byte
 
-		metrics := ctx.Value(ctxMetricsKey)
+		metrics := ctx.Value(ctxMetrics)
 		if metrics == nil {
 			metrics, ok = (req).(*metricapi.UpdateRequest)
 			if !ok {
@@ -116,7 +118,7 @@ func MakeGrpcCryptoInterceptor(privateKey []byte) grpc.UnaryServerInterceptor {
 			}
 
 			// кэшируем в контексте чтобы другим перехватчикам не нужно было заново маршалить весь запрос
-			ctx = context.WithValue(ctx, ctxMetricsKey, bodyBytes)
+			ctx = context.WithValue(ctx, ctxMetrics, bodyBytes)
 		} else {
 			bodyBytes = metrics.([]byte)
 		}
