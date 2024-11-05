@@ -17,6 +17,7 @@ import (
 	"github.com/smartfor/metrics/api/metricapi"
 	"github.com/smartfor/metrics/internal/build"
 	"github.com/smartfor/metrics/internal/core"
+	crypto_codec "github.com/smartfor/metrics/internal/crypto-codec"
 	"github.com/smartfor/metrics/internal/logger"
 	"github.com/smartfor/metrics/internal/server/config"
 	"github.com/smartfor/metrics/internal/server/handlers"
@@ -152,7 +153,14 @@ func main() {
 		server := grpc.NewServer(
 			grpc.RPCCompressor(grpc.NewGZIPCompressor()),
 			grpc.RPCDecompressor(grpc.NewGZIPDecompressor()),
-			grpc.UnaryInterceptor(handlers.MakeGrpcAuthInterceptor(cfg)),
+			grpc.ChainUnaryInterceptor(
+				handlers.MakeGrpcAuthInterceptor(cfg),
+			),
+			// Нужна помощь!
+			// FIXME - я не понимаю как быть? в кодеке я не имею доступа к открытому ключу из метаданных
+			//  а в интерцепторе я имею доступ к метаданным но уже поздно так как он вызывается после кодека,
+			//  и уже будет ошибка так как данные зашифрованы!!!!!!
+			grpc.ForceServerCodec(crypto_codec.MakeCryptoCodec()),
 		)
 
 		metricapi.RegisterMetricsServer(

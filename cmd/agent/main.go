@@ -27,25 +27,25 @@ func main() {
 
 	fmt.Printf("Agent config :: \n %v\n", cfg)
 
-	var privateKey []byte
+	var publicKey []byte
 	if cfg.CryptoKey != "" {
 		if cfg.CryptoKey != "" {
 			pk, err := os.ReadFile(cfg.CryptoKey)
 			if err != nil {
 				log.Fatalf("Public key not found")
 			}
-			privateKey = pk
+			publicKey = pk
 		}
 	}
 
 	var sender metric_sender.MetricSender
 	if cfg.Transport == config.HttpTransport {
-		sender, err = metric_sender.NewHttpMetricSender(cfg)
+		sender, err = metric_sender.NewHttpMetricSender(cfg, publicKey)
 		if err != nil {
 			log.Fatalf("Error creating metric sender: %v", err)
 		}
 	} else if cfg.Transport == config.GrpcTransport {
-		sender, err = metric_sender.NewGrpcMetricSender(cfg)
+		sender, err = metric_sender.NewGrpcMetricSender(cfg, publicKey)
 		if err != nil {
 			log.Fatalf("Error creating metric sender: %v", err)
 		}
@@ -53,7 +53,7 @@ func main() {
 		log.Fatalf("Unknown transport type: %v", cfg.Transport)
 	}
 
-	s := agent.NewService(cfg, sender, privateKey)
+	s := agent.NewService(cfg, sender, publicKey)
 
 	waitShutdown := make(chan struct{})
 	done := make(chan os.Signal, 1)

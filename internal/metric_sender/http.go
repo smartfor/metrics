@@ -17,11 +17,13 @@ import (
 var UpdateBatchURL string = "/updates/"
 
 type HttpMetricSender struct {
-	client *resty.Client
-	realIP string
+	client    *resty.Client
+	realIP    string
+	publicKey []byte
+	secret    string
 }
 
-func NewHttpMetricSender(cfg *config.Config) (MetricSender, error) {
+func NewHttpMetricSender(cfg *config.Config, publicKey []byte) (MetricSender, error) {
 	client := resty.
 		New().
 		SetBaseURL(cfg.HostEndpoint).
@@ -34,14 +36,16 @@ func NewHttpMetricSender(cfg *config.Config) (MetricSender, error) {
 	}
 
 	return &HttpMetricSender{
-		client: client,
-		realIP: realIP,
+		client:    client,
+		realIP:    realIP,
+		secret:    cfg.Secret,
+		publicKey: publicKey,
 	}, nil
 }
 
 var _ MetricSender = &HttpMetricSender{}
 
-func (s *HttpMetricSender) Send(batch []metrics.Metrics, options SendOptions) error {
+func (s *HttpMetricSender) Send(batch []metrics.Metrics) error {
 	var (
 		err        error
 		body       []byte
@@ -56,13 +60,13 @@ func (s *HttpMetricSender) Send(batch []metrics.Metrics, options SendOptions) er
 		return err
 	}
 
-	if options.Secret != "" {
-		sign = utils.Sign(body, options.Secret)
+	if s.secret != "" {
+		sign = utils.Sign(body, s.secret)
 		hexHash = hex.EncodeToString(sign.Sum(nil))
 	}
 
-	if options.PrivateKey != nil {
-		body, key, err = crypto.EncryptWithPublicKey(body, options.PrivateKey)
+	if s.publicKey != nil {
+		body, key, err = crypto.EncryptWithPublicKey(body, s.publicKey)
 		if err != nil {
 			fmt.Println("Encryption error: ", err)
 			return err
@@ -82,11 +86,11 @@ func (s *HttpMetricSender) Send(batch []metrics.Metrics, options SendOptions) er
 			SetHeader("X-Real-IP", s.realIP).
 			SetBody(compressed)
 
-		if options.PrivateKey != nil {
+		if s.publicKey != nil {
 			r = r.SetHeader(utils.CryptoKey, hex.EncodeToString(key))
 		}
 
-		if options.Secret != "" {
+		if s.secret != "" {
 			r = r.SetHeader(utils.AuthHeaderName, hexHash)
 		}
 

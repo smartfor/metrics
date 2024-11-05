@@ -11,5 +11,5 @@ type SendOptions struct {
 
 // MetricSender интерфейс для отправки метрик
 type MetricSender interface {
-	Send(metrics []metrics.Metrics, options SendOptions) error
+	Send(metrics []metrics.Metrics) error
 }

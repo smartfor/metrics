@@ -210,8 +210,5 @@ func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
 		batch = append(batch, *metric)
 	}
 
-	return s.sender.Send(batch, metric_sender.SendOptions{
-		PrivateKey: s.privateKey,
-		Secret:     s.config.Secret,
-	})
+	return s.sender.Send(batch)
 }

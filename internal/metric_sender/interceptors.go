@@ -13,7 +13,9 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-func MakeClientInterceptor(cfg *config.Config) grpc.UnaryClientInterceptor {
+const ctxMetricsKey = "metricsAsBytes"
+
+func MakeClientAuthInterceptor(cfg *config.Config) grpc.UnaryClientInterceptor {
 	return func(
 		ctx context.Context,
 		method string,
@@ -23,25 +25,58 @@ func MakeClientInterceptor(cfg *config.Config) grpc.UnaryClientInterceptor {
 		invoker grpc.UnaryInvoker,
 		opts ...grpc.CallOption,
 	) error {
-		meta := map[string]string{}
+		if cfg.Secret == "" {
+			return invoker(ctx, method, req, reply, cc, opts...)
+		}
 
-		if cfg.Secret != "" {
+		var (
+			meta      = make(map[string]string)
+			bodyBytes []byte
+			cache     any
+			err       error
+		)
+
+		cache = ctx.Value(ctxMetricsKey)
+		if cache == nil {
 			body, ok := req.(*metricapi.UpdateRequest)
 			if !ok {
 				return fmt.Errorf("invalid request type")
 			}
 
-			asJson, err := json.Marshal(body)
+			cache, err = json.Marshal(body)
 			if err != nil {
 				return err
 			}
 
-			sign := utils.Sign(asJson, cfg.Secret)
-			hexHash := hex.EncodeToString(sign.Sum(nil))
-			meta[utils.AuthHeaderName] = hexHash
+			// кэшируем в контексте запрос для последующего использования в других интерцепторах
+			ctx = context.WithValue(ctx, ctxMetricsKey, body)
+		}
+		bodyBytes = cache.([]byte)
+
+		sign := utils.Sign(bodyBytes, cfg.Secret)
+		hexHash := hex.EncodeToString(sign.Sum(nil))
+
+		meta[utils.AuthHeaderName] = hexHash
+
+		ctx = metadata.AppendToOutgoingContext(ctx, utils.AuthHeaderName, hexHash)
+		return invoker(ctx, method, req, reply, cc, opts...)
+	}
+}
+
+func MakeClientCryptoInterceptor(cfg *config.Config, publicKey []byte) grpc.UnaryClientInterceptor {
+	return func(
+		ctx context.Context,
+		method string,
+		req interface{},
+		reply interface{},
+		cc *grpc.ClientConn,
+		invoker grpc.UnaryInvoker,
+		opts ...grpc.CallOption,
+	) error {
+		if cfg.CryptoKey != "" {
+			ctx = metadata.AppendToOutgoingContext(ctx, utils.CryptoKey, hex.EncodeToString(publicKey))
 		}
 
-		ctx = metadata.NewOutgoingContext(ctx, metadata.New(meta))
 		return invoker(ctx, method, req, reply, cc, opts...)
 	}
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/smartfor/metrics/api/metricapi"
 	"github.com/smartfor/metrics/internal/config"
+	crypto_codec "github.com/smartfor/metrics/internal/crypto-codec"
 	"github.com/smartfor/metrics/internal/ip"
 	"github.com/smartfor/metrics/internal/metrics"
 	"github.com/smartfor/metrics/internal/utils"
@@ -20,11 +21,13 @@ import (
 )
 
 type GrpcMetricSender struct {
-	client metricapi.MetricsClient
-	realIP string
+	client    metricapi.MetricsClient
+	realIP    string
+	publicKey []byte
+	secret    string
 }
 
-func NewGrpcMetricSender(cfg *config.Config) (MetricSender, error) {
+func NewGrpcMetricSender(cfg *config.Config, publicKey []byte) (MetricSender, error) {
 	backoffConfig := backoff.Config{
 		BaseDelay:  1 * time.Second,   // Начальная задержка
 		Multiplier: 1.6,               // Множитель экспоненциального увеличения
@@ -39,8 +42,14 @@ func NewGrpcMetricSender(cfg *config.Config) (MetricSender, error) {
 			MinConnectTimeout: 5 * time.Second, // Минимальное время ожидания соединения
 		}),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultCallOptions(grpc.UseCompressor(gzip.Name)),
-		grpc.WithChainUnaryInterceptor(MakeClientInterceptor(cfg)),
+		grpc.WithDefaultCallOptions(
+			grpc.ForceCodec(crypto_codec.MakeCryptoCodec()),
+			grpc.UseCompressor(gzip.Name),
+		),
+		grpc.WithChainUnaryInterceptor(
+			MakeClientAuthInterceptor(cfg),
+			MakeClientCryptoInterceptor(cfg, publicKey),
+		),
 	)
 	if err != nil {
 		return nil, err
@@ -54,15 +63,18 @@ func NewGrpcMetricSender(cfg *config.Config) (MetricSender, error) {
 	}
 
 	return &GrpcMetricSender{
-		client: client,
-		realIP: realIP,
+		client:    client,
+		realIP:    realIP,
+		publicKey: publicKey,
+		secret:    cfg.Secret,
 	}, nil
 }
 
 var _ MetricSender = &GrpcMetricSender{}
 
-func (s *GrpcMetricSender) Send(batch []metrics.Metrics, options SendOptions) error {
+func (s *GrpcMetricSender) Send(batch []metrics.Metrics) error {
 	md := make(map[string]string)
+
 	outBatch := make([]*metricapi.Metric, 0)
 	for _, m := range batch {
 		outMetric := &metricapi.Metric{
@@ -81,8 +93,8 @@ func (s *GrpcMetricSender) Send(batch []metrics.Metrics, options SendOptions) er
 		outBatch = append(outBatch, outMetric)
 	}
 
-	if options.PrivateKey != nil {
-		md[utils.CryptoKey] = hex.EncodeToString(options.PrivateKey)
+	if s.publicKey != nil {
+		md[utils.CryptoKey] = hex.EncodeToString(s.publicKey)
 	}
 
 	ctx := metadata.NewOutgoingContext(context.Background(), metadata.New(md))
