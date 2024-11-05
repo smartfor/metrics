@@ -14,7 +14,7 @@ import (
 	"github.com/smartfor/metrics/internal/utils"
 )
 
-var UpdateBatchURL string = "/updates/"
+var UpdateBatchURL = "/updates/"
 
 type HTTPMetricSender struct {
 	client    *resty.Client
@@ -96,6 +96,9 @@ func (s *HTTPMetricSender) Send(batch []metrics.Metrics) error {
 
 		return r.Post(UpdateBatchURL)
 	}, nil)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
