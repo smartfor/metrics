@@ -1,13 +1,10 @@
 // Package internal содержит всю логику работы с метриками.
-package internal
+package agent
 
 import (
 	"context"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"hash"
 	"math/rand"
 	"slices"
 	"strconv"
@@ -15,18 +12,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/go-resty/resty/v2"
 	"github.com/smartfor/metrics/internal/config"
 	"github.com/smartfor/metrics/internal/core"
-	"github.com/smartfor/metrics/internal/crypto"
 	"github.com/smartfor/metrics/internal/metrics"
+	"github.com/smartfor/metrics/internal/metricsender"
 	"github.com/smartfor/metrics/internal/polling"
-	"github.com/smartfor/metrics/internal/utils"
 )
 
 var ErrAgentClosed = errors.New("agent closed")
-
-var UpdateBatchURL string = "/updates/"
 
 type Metric = polling.MetricsModel
 
@@ -41,29 +34,28 @@ type JobResult struct {
 }
 
 type Service struct {
-	client             *resty.Client
 	mu                 *sync.Mutex
 	config             config.Config
 	pollCounter        atomic.Int64
 	privateKey         []byte
 	inShutdown         atomic.Bool
 	activeWorkersCount atomic.Int64
+	realIP             string
+	sender             metricsender.MetricSender
 }
 
-func NewService(cfg *config.Config, privateKey []byte) Service {
-	client := resty.
-		New().
-		SetBaseURL(cfg.HostEndpoint).
-		SetHeader("Content-Type", "application/json").
-		SetTimeout(cfg.ResponseTimeoutDuration)
-
+func NewService(
+	cfg *config.Config,
+	sender metricsender.MetricSender,
+	privateKey []byte,
+) Service {
 	return Service{
 		config:             *cfg,
-		client:             client,
 		privateKey:         privateKey,
 		mu:                 &sync.Mutex{},
 		inShutdown:         atomic.Bool{},
 		activeWorkersCount: atomic.Int64{},
+		sender:             sender,
 	}
 }
 
@@ -91,6 +83,7 @@ func (s *Service) Run(ctx context.Context) error {
 				continue
 			}
 
+			s.pollCounter.Add(1)
 			messages = append(messages, msg)
 		case result := <-results:
 			if result.Err != nil {
@@ -146,97 +139,6 @@ func (s *Service) Run(ctx context.Context) error {
 	}
 }
 
-func (s *Service) worker(jobs <-chan Job, results chan<- JobResult) {
-	s.activeWorkersCount.Add(1)
-	defer s.activeWorkersCount.Add(-1)
-
-	for j := range jobs {
-		if s.inShutdown.Load() {
-			return
-		}
-
-		if err := s.send(j.Store, j.PoolCounter); err != nil {
-			results <- JobResult{Err: err, PoolCounter: j.PoolCounter}
-		}
-
-		results <- JobResult{Err: nil, PoolCounter: j.PoolCounter}
-	}
-}
-
-func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
-	var (
-		batch      []metrics.Metrics
-		err        error
-		body       []byte
-		key        []byte
-		compressed []byte
-		sign       hash.Hash
-		hexHash    string
-		metric     *metrics.Metrics
-	)
-
-	store["PoolCount"] = polling.MetricsModel{
-		Type:  core.Gauge,
-		Key:   "PoolCount",
-		Value: strconv.FormatInt(pollCounter, 10),
-	}
-
-	for _, v := range store {
-		metric, err = metrics.FromMetricModel(v)
-		if err != nil {
-			fmt.Println("Extract metric from model error: ", err)
-			return err
-		}
-		batch = append(batch, *metric)
-	}
-
-	if body, err = json.Marshal(batch); err != nil {
-		fmt.Println("Marshalling batch error: ", err)
-		return err
-	}
-
-	if s.config.Secret != "" {
-		sign = utils.Sign(body, s.config.Secret)
-		hexHash = hex.EncodeToString(sign.Sum(nil))
-	}
-
-	if s.privateKey != nil {
-		body, key, err = crypto.EncryptWithPublicKey(body, s.privateKey)
-		if err != nil {
-			fmt.Println("Encryption error: ", err)
-			return err
-		}
-	}
-
-	if compressed, err = utils.GzipCompress(body); err != nil {
-		fmt.Println("Compressed body error: ", err)
-		return err
-	}
-
-	_, err = utils.Retry(func() (*resty.Response, error) {
-		r := s.client.R().
-			SetHeader("Content-Type", "application/json").
-			SetHeader("Accept-Encoding", "gzip").
-			SetHeader("Content-Encoding", "gzip").
-			SetBody(compressed)
-
-		if s.privateKey != nil {
-			r = r.SetHeader(utils.CryptoKey, hex.EncodeToString(key))
-		}
-
-		if s.config.Secret != "" {
-			r = r.SetHeader(utils.AuthHeaderName, hexHash)
-		}
-
-		return r.Post(UpdateBatchURL)
-	}, nil)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (s *Service) Shutdown(ctx context.Context) error {
 	s.inShutdown.Store(true)
 	defer s.inShutdown.Store(false)
@@ -267,4 +169,46 @@ func (s *Service) Shutdown(ctx context.Context) error {
 			timer.Reset(nextPollInterval())
 		}
 	}
+}
+
+func (s *Service) worker(jobs <-chan Job, results chan<- JobResult) {
+	s.activeWorkersCount.Add(1)
+	defer s.activeWorkersCount.Add(-1)
+
+	for j := range jobs {
+		if s.inShutdown.Load() {
+			return
+		}
+
+		if err := s.send(j.Store, j.PoolCounter); err != nil {
+			results <- JobResult{Err: err, PoolCounter: j.PoolCounter}
+		}
+
+		results <- JobResult{Err: nil, PoolCounter: j.PoolCounter}
+	}
+}
+
+func (s *Service) send(store polling.MetricStore, pollCounter int64) error {
+	var (
+		batch  []metrics.Metrics
+		err    error
+		metric *metrics.Metrics
+	)
+
+	store["PoolCount"] = polling.MetricsModel{
+		Type:  core.Counter,
+		Key:   "PoolCount",
+		Value: strconv.FormatInt(pollCounter, 10),
+	}
+
+	for _, v := range store {
+		metric, err = metrics.FromMetricModel(v)
+		if err != nil {
+			fmt.Println("Extract metric from model error: ", err)
+			return err
+		}
+		batch = append(batch, *metric)
+	}
+
+	return s.sender.Send(batch)
 }

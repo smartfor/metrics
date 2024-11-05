@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,13 +14,20 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/smartfor/metrics/api/metricapi"
 	"github.com/smartfor/metrics/internal/build"
 	"github.com/smartfor/metrics/internal/core"
+	"github.com/smartfor/metrics/internal/cryptocodec"
 	"github.com/smartfor/metrics/internal/logger"
 	"github.com/smartfor/metrics/internal/server/config"
 	"github.com/smartfor/metrics/internal/server/handlers"
 	"github.com/smartfor/metrics/internal/server/storage"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
+
+	_ "google.golang.org/grpc/encoding/gzip"
 )
 
 func main() {
@@ -64,60 +72,141 @@ func main() {
 		}
 	}
 
-	var router chi.Router
-	if postgresStorage != nil {
-		router = handlers.Router(postgresStorage, zlog, cfg.Secret, privateKey)
-	} else {
-		router = handlers.Router(memStorage, zlog, cfg.Secret, privateKey)
-		if cfg.StoreIntervalDuration > 0 {
-			go func(
-				storage core.Storage,
-				backup core.Storage,
-				interval time.Duration,
-			) {
-				time.Sleep(interval)
-				ticker := time.NewTicker(interval)
-				defer ticker.Stop()
+	if postgresStorage != nil && cfg.StoreIntervalDuration > 0 {
+		go func(
+			storage core.Storage,
+			backup core.Storage,
+			interval time.Duration,
+		) {
+			time.Sleep(interval)
+			ticker := time.NewTicker(interval)
+			defer ticker.Stop()
 
-				for range ticker.C {
-					if err := core.Sync(context.Background(), storage, backup); err != nil {
-						fmt.Println(err)
-						zlog.Error("Error sync metrics: ", zap.Error(err))
-					}
+			for range ticker.C {
+				if err := core.Sync(context.Background(), storage, backup); err != nil {
+					fmt.Println(err)
+					zlog.Error("Error sync metrics: ", zap.Error(err))
 				}
-			}(memStorage, backupStorage, cfg.StoreIntervalDuration)
-		}
-	}
-	server := &http.Server{
-		Addr:              cfg.Addr,
-		ReadHeaderTimeout: 10 * time.Second,
-		Handler:           router,
+			}
+		}(memStorage, backupStorage, cfg.StoreIntervalDuration)
 	}
 
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	var g errgroup.Group
 
-	go func() {
-		<-done
-		zlog.Info("Shutting down server...")
+	// ---------------------------- HTTP TRANSPORT ----------------------------- //
+	g.Go(func() error {
+		var (
+			router chi.Router
+			store  core.Storage
+		)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		if err := server.Shutdown(ctx); err != nil {
-			zlog.Fatal("Server Shutdown Failed: ", zap.Error(err))
+		if postgresStorage != nil {
+			store = postgresStorage
+		} else {
+			store = memStorage
 		}
 
-		zlog.Info("Server gracefully stopped.")
-	}()
+		router = handlers.Router(store, zlog, cfg.Secret, privateKey, cfg.TrustedSubnet)
 
-	log.Printf("Server is ready to handle requests at %s", cfg.Addr)
-	if err := server.ListenAndServe(); err != nil && errors.Is(err, http.ErrServerClosed) {
-		if err := core.Sync(context.Background(), memStorage, backupStorage); err != nil {
-			zlog.Fatal("Memstorage Backup Failed: ", zap.Error(err))
+		server := &http.Server{
+			Addr:              cfg.Addr,
+			ReadHeaderTimeout: 10 * time.Second,
+			Handler:           router,
 		}
-		if err := memStorage.Close(); err != nil {
-			zlog.Fatal("Memstorage Close Failed: ", zap.Error(err))
+
+		errsCh := make(chan error, 1)
+		go func() {
+			defer close(errsCh)
+
+			zlog.Info("Http Server is ready to handle requests at ", zap.String("address", cfg.Addr))
+			if err := server.ListenAndServe(); err == nil || errors.Is(err, http.ErrServerClosed) {
+				return
+			}
+
+			errsCh <- fmt.Errorf("HTTP server ListenAndServe failed: %w", err)
+		}()
+
+		go func() {
+			signalCh := make(chan os.Signal, 1)
+			defer close(signalCh)
+
+			signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+			<-signalCh
+			zlog.Info("Shutting down server...")
+
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := server.Shutdown(ctx); err != nil {
+				errsCh <- fmt.Errorf("server shutdown failed: %w", err)
+			}
+		}()
+
+		return <-errsCh
+	})
+
+	// ---------------------------------- GRPC TRANSPORT ------------------------------------ //
+
+	g.Go(func() error {
+		listener, err := net.Listen("tcp", cfg.GrpcAddr)
+		if err != nil {
+			return err
 		}
+
+		server := grpc.NewServer(
+			grpc.ChainUnaryInterceptor(
+				handlers.MakeGrpcAuthInterceptor(cfg),
+			),
+			// Нужна помощь!
+			// я не понимаю как быть? в кодеке я не имею доступа к открытому ключу из метаданных
+			//  а в интерцепторе я имею доступ к метаданным но уже поздно так как он вызывается после кодека,
+			//  и уже будет ошибка так как данные зашифрованы!!!!!!
+			grpc.ForceServerCodec(cryptocodec.MakeCryptoCodec()),
+		)
+
+		metricapi.RegisterMetricsServer(
+			server,
+			handlers.NewGRPCServer(memStorage, zlog, cfg.Secret, privateKey, cfg.TrustedSubnet),
+		)
+
+		reflection.Register(server)
+
+		errsCh := make(chan error, 1)
+
+		go func() {
+			signalCh := make(chan os.Signal, 1)
+			defer close(signalCh)
+
+			signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+			<-signalCh
+
+			zlog.Info("Shutting down server...")
+			server.GracefulStop()
+		}()
+		zlog.Info("Запуск gRPC сервера", zap.String("address", cfg.GrpcAddr))
+
+		go func() {
+			defer close(errsCh)
+
+			zlog.Info("Grpc Server is ready to handle requests at ", zap.String("address", cfg.GrpcAddr))
+			if err := server.Serve(listener); err == nil || errors.Is(err, grpc.ErrServerStopped) {
+				return
+			}
+
+			errsCh <- fmt.Errorf("GRPC server Serve failed: %w", err)
+		}()
+
+		return <-errsCh
+	})
+
+	g.Wait()
+
+	if err := core.Sync(context.Background(), memStorage, backupStorage); err != nil {
+		zlog.Fatal("memstorage backup failed:", zap.Error(err))
 	}
+
+	if err := memStorage.Close(); err != nil {
+		zlog.Fatal("memstorage close failed:", zap.Error(err))
+	}
+
+	zlog.Info("Server stopped")
 }

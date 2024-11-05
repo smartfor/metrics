@@ -13,8 +13,10 @@ import (
 )
 
 const (
-	HTTPProto  = "http://"
-	HTTPSProto = "https://"
+	HTTPProto     = "http://"
+	HTTPSProto    = "https://"
+	HTTPTransport = "http"
+	GRPCTransport = "grpc"
 )
 
 type Config struct {
@@ -25,6 +27,7 @@ type Config struct {
 	PollInterval            string `json:"poll_interval"`
 	ReportInterval          string `json:"report_interval"`
 	ResponseTimeout         string `json:"response_timeout"`
+	Transport               string `json:"transport"`
 	PollIntervalDuration    time.Duration
 	ReportIntervalDuration  time.Duration
 	ResponseTimeoutDuration time.Duration
@@ -32,11 +35,12 @@ type Config struct {
 
 func GetConfig() (*Config, error) {
 	config := &Config{
-		HostEndpoint:    "http://localhost:8080",
+		HostEndpoint:    "localhost:8080",
 		PollInterval:    "2s",
 		ReportInterval:  "10s",
 		ResponseTimeout: "3s",
 		RateLimit:       1,
+		Transport:       HTTPTransport,
 	}
 
 	// resolve config path
@@ -87,7 +91,9 @@ func GetConfig() (*Config, error) {
 	}
 	config.ResponseTimeoutDuration = val
 
-	if !strings.HasPrefix(config.HostEndpoint, HTTPProto) && !strings.HasPrefix(config.HostEndpoint, HTTPSProto) {
+	if !strings.HasPrefix(config.HostEndpoint, HTTPProto) &&
+		!strings.HasPrefix(config.HostEndpoint, HTTPSProto) &&
+		config.Transport == HTTPTransport {
 		config.HostEndpoint = HTTPProto + config.HostEndpoint
 	}
 

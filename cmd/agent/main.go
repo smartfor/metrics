@@ -11,9 +11,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/smartfor/metrics/internal"
+	"github.com/smartfor/metrics/internal/agent"
 	"github.com/smartfor/metrics/internal/build"
 	"github.com/smartfor/metrics/internal/config"
+	"github.com/smartfor/metrics/internal/metricsender"
 )
 
 func main() {
@@ -26,18 +27,33 @@ func main() {
 
 	fmt.Printf("Agent config :: \n %v\n", cfg)
 
-	var privateKey []byte
+	var publicKey []byte
 	if cfg.CryptoKey != "" {
 		if cfg.CryptoKey != "" {
 			pk, err := os.ReadFile(cfg.CryptoKey)
 			if err != nil {
 				log.Fatalf("Public key not found")
 			}
-			privateKey = pk
+			publicKey = pk
 		}
 	}
 
-	s := internal.NewService(cfg, privateKey)
+	var sender metricsender.MetricSender
+	if cfg.Transport == config.HTTPTransport {
+		sender, err = metricsender.NewHTTPMetricSender(cfg, publicKey)
+		if err != nil {
+			log.Fatalf("Error creating metric sender: %v", err)
+		}
+	} else if cfg.Transport == config.GRPCTransport {
+		sender, err = metricsender.NewGRPCMetricSender(cfg, publicKey)
+		if err != nil {
+			log.Fatalf("Error creating metric sender: %v", err)
+		}
+	} else {
+		log.Fatalf("Unknown transport type: %v", cfg.Transport)
+	}
+
+	s := agent.NewService(cfg, sender, publicKey)
 
 	waitShutdown := make(chan struct{})
 	done := make(chan os.Signal, 1)
@@ -57,7 +73,7 @@ func main() {
 		close(waitShutdown)
 	}()
 
-	if err := s.Run(context.Background()); err != nil && !errors.Is(err, internal.ErrAgentClosed) {
+	if err := s.Run(context.Background()); err != nil && !errors.Is(err, agent.ErrAgentClosed) {
 		log.Fatalf("Agent Run failed: %v", err)
 	}
 
