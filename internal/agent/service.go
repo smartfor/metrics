@@ -14,8 +14,8 @@ import (
 
 	"github.com/smartfor/metrics/internal/config"
 	"github.com/smartfor/metrics/internal/core"
-	"github.com/smartfor/metrics/internal/metric_sender"
 	"github.com/smartfor/metrics/internal/metrics"
+	"github.com/smartfor/metrics/internal/metricsender"
 	"github.com/smartfor/metrics/internal/polling"
 )
 
@@ -41,12 +41,12 @@ type Service struct {
 	inShutdown         atomic.Bool
 	activeWorkersCount atomic.Int64
 	realIP             string
-	sender             metric_sender.MetricSender
+	sender             metricsender.MetricSender
 }
 
 func NewService(
 	cfg *config.Config,
-	sender metric_sender.MetricSender,
+	sender metricsender.MetricSender,
 	privateKey []byte,
 ) Service {
 	return Service{

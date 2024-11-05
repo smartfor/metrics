@@ -1,4 +1,4 @@
-package metric_sender
+package metricsender
 
 import (
 	"context"

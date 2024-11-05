@@ -1,4 +1,4 @@
-package metric_sender
+package metricsender
 
 import (
 	"encoding/hex"
@@ -16,7 +16,7 @@ import (
 
 var UpdateBatchURL string = "/updates/"
 
-type HttpMetricSender struct {
+type HTTPMetricSender struct {
 	client    *resty.Client
 	realIP    string
 	publicKey []byte
@@ -35,7 +35,7 @@ func NewHTTPMetricSender(cfg *config.Config, publicKey []byte) (MetricSender, er
 		return nil, err
 	}
 
-	return &HttpMetricSender{
+	return &HTTPMetricSender{
 		client:    client,
 		realIP:    realIP,
 		secret:    cfg.Secret,
@@ -43,9 +43,9 @@ func NewHTTPMetricSender(cfg *config.Config, publicKey []byte) (MetricSender, er
 	}, nil
 }
 
-var _ MetricSender = &HttpMetricSender{}
+var _ MetricSender = &HTTPMetricSender{}
 
-func (s *HttpMetricSender) Send(batch []metrics.Metrics) error {
+func (s *HTTPMetricSender) Send(batch []metrics.Metrics) error {
 	var (
 		err        error
 		body       []byte

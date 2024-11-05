@@ -1,4 +1,4 @@
-package metric_sender
+package metricsender
 
 import (
 	"github.com/smartfor/metrics/internal/metrics"

@@ -14,7 +14,7 @@ import (
 	"github.com/smartfor/metrics/internal/agent"
 	"github.com/smartfor/metrics/internal/build"
 	"github.com/smartfor/metrics/internal/config"
-	"github.com/smartfor/metrics/internal/metric_sender"
+	"github.com/smartfor/metrics/internal/metricsender"
 )
 
 func main() {
@@ -38,14 +38,14 @@ func main() {
 		}
 	}
 
-	var sender metric_sender.MetricSender
+	var sender metricsender.MetricSender
 	if cfg.Transport == config.HTTPTransport {
-		sender, err = metric_sender.NewHTTPMetricSender(cfg, publicKey)
+		sender, err = metricsender.NewHTTPMetricSender(cfg, publicKey)
 		if err != nil {
 			log.Fatalf("Error creating metric sender: %v", err)
 		}
 	} else if cfg.Transport == config.GRPCTransport {
-		sender, err = metric_sender.NewGRPCMetricSender(cfg, publicKey)
+		sender, err = metricsender.NewGRPCMetricSender(cfg, publicKey)
 		if err != nil {
 			log.Fatalf("Error creating metric sender: %v", err)
 		}
