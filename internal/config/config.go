@@ -15,8 +15,8 @@ import (
 const (
 	HTTPProto     = "http://"
 	HTTPSProto    = "https://"
-	HttpTransport = "http"
-	GrpcTransport = "grpc"
+	HTTPTransport = "http"
+	GRPCTransport = "grpc"
 )
 
 type Config struct {
@@ -40,7 +40,7 @@ func GetConfig() (*Config, error) {
 		ReportInterval:  "10s",
 		ResponseTimeout: "3s",
 		RateLimit:       1,
-		Transport:       HttpTransport,
+		Transport:       HTTPTransport,
 	}
 
 	// resolve config path
@@ -93,7 +93,7 @@ func GetConfig() (*Config, error) {
 
 	if !strings.HasPrefix(config.HostEndpoint, HTTPProto) &&
 		!strings.HasPrefix(config.HostEndpoint, HTTPSProto) &&
-		config.Transport == HttpTransport {
+		config.Transport == HTTPTransport {
 		config.HostEndpoint = HTTPProto + config.HostEndpoint
 	}
 

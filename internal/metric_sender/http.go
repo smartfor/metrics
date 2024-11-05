@@ -23,7 +23,7 @@ type HttpMetricSender struct {
 	secret    string
 }
 
-func NewHttpMetricSender(cfg *config.Config, publicKey []byte) (MetricSender, error) {
+func NewHTTPMetricSender(cfg *config.Config, publicKey []byte) (MetricSender, error) {
 	client := resty.
 		New().
 		SetBaseURL(cfg.HostEndpoint).

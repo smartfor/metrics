@@ -39,13 +39,13 @@ func main() {
 	}
 
 	var sender metric_sender.MetricSender
-	if cfg.Transport == config.HttpTransport {
-		sender, err = metric_sender.NewHttpMetricSender(cfg, publicKey)
+	if cfg.Transport == config.HTTPTransport {
+		sender, err = metric_sender.NewHTTPMetricSender(cfg, publicKey)
 		if err != nil {
 			log.Fatalf("Error creating metric sender: %v", err)
 		}
-	} else if cfg.Transport == config.GrpcTransport {
-		sender, err = metric_sender.NewGrpcMetricSender(cfg, publicKey)
+	} else if cfg.Transport == config.GRPCTransport {
+		sender, err = metric_sender.NewGRPCMetricSender(cfg, publicKey)
 		if err != nil {
 			log.Fatalf("Error creating metric sender: %v", err)
 		}

@@ -8,7 +8,7 @@ import (
 
 	"github.com/smartfor/metrics/api/metricapi"
 	"github.com/smartfor/metrics/internal/config"
-	crypto_codec "github.com/smartfor/metrics/internal/crypto-codec"
+	"github.com/smartfor/metrics/internal/crypto_codec"
 	"github.com/smartfor/metrics/internal/ip"
 	"github.com/smartfor/metrics/internal/metrics"
 	"github.com/smartfor/metrics/internal/utils"
@@ -27,7 +27,7 @@ type GrpcMetricSender struct {
 	secret    string
 }
 
-func NewGrpcMetricSender(cfg *config.Config, publicKey []byte) (MetricSender, error) {
+func NewGRPCMetricSender(cfg *config.Config, publicKey []byte) (MetricSender, error) {
 	backoffConfig := backoff.Config{
 		BaseDelay:  1 * time.Second,   // Начальная задержка
 		Multiplier: 1.6,               // Множитель экспоненциального увеличения

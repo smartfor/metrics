@@ -13,7 +13,9 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-const ctxMetricsKey = "metricsAsBytes"
+type ctxMetricsType string
+
+const ctxMetricsKey ctxMetricsType = "metricsAsBytes"
 
 func MakeClientAuthInterceptor(cfg *config.Config) grpc.UnaryClientInterceptor {
 	return func(

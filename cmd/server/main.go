@@ -17,7 +17,7 @@ import (
 	"github.com/smartfor/metrics/api/metricapi"
 	"github.com/smartfor/metrics/internal/build"
 	"github.com/smartfor/metrics/internal/core"
-	crypto_codec "github.com/smartfor/metrics/internal/crypto-codec"
+	crypto_codec "github.com/smartfor/metrics/internal/crypto_codec"
 	"github.com/smartfor/metrics/internal/logger"
 	"github.com/smartfor/metrics/internal/server/config"
 	"github.com/smartfor/metrics/internal/server/handlers"
