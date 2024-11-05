@@ -81,12 +81,6 @@ func (s *GrpcMetricSender) Send(batch []metrics.Metrics, options SendOptions) er
 		outBatch = append(outBatch, outMetric)
 	}
 
-	//if options.Secret != "" {
-	//	sign = utils.Sign(outBatch), options.Secret)
-	//	hexHash = hex.EncodeToString(sign.Sum(nil))
-	//	md[utils.AuthHeaderName] = hexHash
-	//}
-
 	if options.PrivateKey != nil {
 		md[utils.CryptoKey] = hex.EncodeToString(options.PrivateKey)
 	}

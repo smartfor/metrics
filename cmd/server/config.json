@@ -5,6 +5,7 @@
   "store_interval": "1s",
   "store_file": "file.db",
   "database_dsn": "",
+  "secret": "bigsecret",
   "crypto_key": "private_key.pem",
   "trusted_subnet": "176.112.96.0/24"
 }

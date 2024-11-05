@@ -152,6 +152,7 @@ func main() {
 		server := grpc.NewServer(
 			grpc.RPCCompressor(grpc.NewGZIPCompressor()),
 			grpc.RPCDecompressor(grpc.NewGZIPDecompressor()),
+			grpc.UnaryInterceptor(handlers.MakeGrpcAuthInterceptor(cfg)),
 		)
 
 		metricapi.RegisterMetricsServer(

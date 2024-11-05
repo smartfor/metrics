@@ -2,27 +2,16 @@ package metric_sender
 
 import (
 	"context"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
 
+	"github.com/smartfor/metrics/api/metricapi"
 	"github.com/smartfor/metrics/internal/config"
+	"github.com/smartfor/metrics/internal/utils"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/encoding"
+	"google.golang.org/grpc/metadata"
 )
-
-// Прокси-Codec, который передаёт заранее сериализованные данные
-type proxyCodec struct {
-	encoding.Codec
-	serializedData []byte
-}
-
-func (c *proxyCodec) Marshal(v interface{}) ([]byte, error) {
-	// Возвращаем заранее сериализованные данные вместо повторной сериализации
-	return c.serializedData, nil
-}
-
-func (c *proxyCodec) Unmarshal(data []byte, v interface{}) error {
-	// Используем стандартный Unmarshal
-	return c.Codec.Unmarshal(data, v)
-}
 
 func MakeClientInterceptor(cfg *config.Config) grpc.UnaryClientInterceptor {
 	return func(
@@ -34,11 +23,25 @@ func MakeClientInterceptor(cfg *config.Config) grpc.UnaryClientInterceptor {
 		invoker grpc.UnaryInvoker,
 		opts ...grpc.CallOption,
 	) error {
-		//body, ok := req.(*metricapi.UpdateRequest)
-		//if ok {
-		//	return status.Errorf(codes.InvalidArgument, "bad request")
-		//}
+		meta := map[string]string{}
 
+		if cfg.Secret != "" {
+			body, ok := req.(*metricapi.UpdateRequest)
+			if !ok {
+				return fmt.Errorf("invalid request type")
+			}
+
+			asJson, err := json.Marshal(body)
+			if err != nil {
+				return err
+			}
+
+			sign := utils.Sign(asJson, cfg.Secret)
+			hexHash := hex.EncodeToString(sign.Sum(nil))
+			meta[utils.AuthHeaderName] = hexHash
+		}
+
+		ctx = metadata.NewOutgoingContext(ctx, metadata.New(meta))
 		return invoker(ctx, method, req, reply, cc, opts...)
 	}
 }
